@@ -59,6 +59,72 @@
     }
   };
 
+  const insertionSort = async () => {
+    let arr = [...array];
+    
+    for (let i = 1; i < arr.length; i++){
+      let key = arr[i];
+      let j = i - 1;
+      // Move elements greater than key to one position ahead of current position
+      while (j >= 0 && arr[j] > key){
+        arr[j + 1] = arr[j];
+        j = j - 1;
+      }
+      arr[j + 1] = key;
+      setArray([...arr]); // Update UI with new array state
+      await new Promise((resolve) => setTimeout(resolve, 300)) // Delay for visualization
+    }
+  };
+
+  // Function to swap numbers in an array
+  function swap(arr: number[], i: number, j: number){
+    let temp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = temp;
+  }
+
+  // Function used to partition the array during quick sort
+  function partition(arr: number[], low: number, high: number){
+    // Select pivot
+    let pivot = arr[high];
+    // The right position of the pivot so far
+    let i = low - 1;
+
+    // Move smaller elements to the left
+    for(let j = low; j <= high - 1; j++){
+      if (arr[j] < pivot){
+        i++;
+        swap(arr, i, j);
+      }
+    }
+
+    // Move pivot after smaller elements and return its position
+    swap(arr, i + 1, high);
+    return i + 1;
+  }
+
+  // QuickSort recursive function
+  const quickSort = async (arr: number[], low: number, high: number) => {
+    if (low < high) {
+      // set partition return index of pivot
+      let pi = partition(arr, low, high);
+
+      setArray([...arr]); // Update UI with array state
+      await new Promise((resolve) => setTimeout(resolve, 300)) // Delay for visualization
+
+      // Recursion calls for smaller elements and >= elements
+      quickSort(arr, low, pi - 1);
+      quickSort(arr, pi + 1, high);
+    }
+  };
+
+  // Initiate the QuickSort process when the button is pressed
+  const quickSortStart = async() => {
+    let arr = [...array];
+    let n = arr.length;
+    quickSort(arr, 0, n-1)
+  };
+
   // JSX rendering with tailwind css
   return (
   <div className="text-center">
@@ -71,6 +137,12 @@
       </button>
       <button onClick={selectionSort} className="bg-green-500 text-white p-2 rounded">
           Selection Sort
+      </button>
+      <button onClick={insertionSort} className="bg-green-500 text-white p-2 rounded">
+          Insertion Sort
+      </button>
+      <button onClick={quickSortStart} className="bg-green-500 text-white p-2 rounded">
+          Quick Sort
       </button>
       <div className="flex justify-center mt-4 space-x-2">
           {array.map((value, idx) => (
