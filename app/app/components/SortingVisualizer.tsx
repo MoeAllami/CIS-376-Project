@@ -23,7 +23,28 @@ const SortingVisualizer = () => {
     setArray(newArray);
 
     // Reset any existing steps and step index whenever a new array is generated
-    setSteps([]);
+    // but also immediately compute steps for the selected algorithm.
+    let recordedSteps: number[][] = [];
+
+    switch (selectedAlgorithm) {
+      case "bubble":
+        recordedSteps = computeBubbleSortSteps(newArray);
+        break;
+      case "selection":
+        recordedSteps = computeSelectionSortSteps(newArray);
+        break;
+      case "insertion":
+        recordedSteps = computeInsertionSortSteps(newArray);
+        break;
+      case "quick":
+        recordedSteps = computeQuickSortSteps(newArray);
+        break;
+      default:
+        recordedSteps = [[...newArray]]; // fallback
+        break;
+    }
+
+    setSteps(recordedSteps);
     setCurrentStep(0);
   };
 
@@ -134,32 +155,6 @@ const SortingVisualizer = () => {
     const result: number[][] = [[...arr]]; // initial snapshot
     quickSortRecursive(arr, 0, arr.length - 1, result);
     return result;
-  };
-
-  // Called when we want to compute steps for the chosen algorithm.
-  const prepareSteps = () => {
-    let recordedSteps: number[][] = [];
-
-    switch (selectedAlgorithm) {
-      case "bubble":
-        recordedSteps = computeBubbleSortSteps(array);
-        break;
-      case "selection":
-        recordedSteps = computeSelectionSortSteps(array);
-        break;
-      case "insertion":
-        recordedSteps = computeInsertionSortSteps(array);
-        break;
-      case "quick":
-        recordedSteps = computeQuickSortSteps(array);
-        break;
-      default:
-        recordedSteps = [[...array]]; // fallback
-        break;
-    }
-
-    setSteps(recordedSteps);
-    setCurrentStep(0);
   };
 
   // Renders the current step in steps[currentStep] whenever it changes.
@@ -292,12 +287,6 @@ const SortingVisualizer = () => {
           className="bg-blue-500 text-white p-2 rounded"
         >
           Generate New Array
-        </button>
-        <button
-          onClick={prepareSteps}
-          className="bg-yellow-500 text-white p-2 rounded"
-        >
-          Load Steps
         </button>
         {/* Step Back button */}
         <button
