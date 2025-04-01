@@ -50,7 +50,9 @@ const SortingVisualizer = () => {
 
   // Re-generate the array when arraySize changes
   useEffect(() => {
-    generateArray();
+    if (currentStep === steps.length - 1 || steps.length === 0) {
+      generateArray();
+    }
   }, [arraySize]);
 
   // Bubble Sort Steps
@@ -162,10 +164,13 @@ const SortingVisualizer = () => {
     if (!svgRef.current || steps.length === 0) return;
 
     const svg = d3.select(svgRef.current);
-    const width = 600;
-    const height = 300;
+    const width = svgRef.current.clientWidth;
+    const height = svgRef.current.clientHeight;
     const data = steps[currentStep];
+
+    const gap = 10;
     const barWidth = width / data.length;
+    const actualBarWidth = barWidth - gap;
 
     // Transition for rectangles
     svg
@@ -176,19 +181,19 @@ const SortingVisualizer = () => {
       .duration(speed / 1.2)
       .attr("x", (_, i) => i * barWidth)
       .attr("y", (d) => height - d * 2)
-      .attr("width", barWidth - 2)
+      .attr("width", actualBarWidth)
       .attr("height", (d) => d * 2)
       .attr("fill", "steelblue");
 
     // Transition for text labels
-    const textSelection = svg.selectAll("text").data(data);
-
-    textSelection
+    svg
+      .selectAll("text")
+      .data(data)
       .join("text")
       .transition()
       .duration(speed / 1.2)
       .text((d) => d)
-      .attr("x", (_, i) => i * barWidth + (barWidth - 2) / 2)
+      .attr("x", (_, i) => i * barWidth + actualBarWidth / 2)
       .attr("y", (d) => height - d * 2 - 5)
       .attr("text-anchor", "middle")
       .attr("fill", "white")
@@ -235,9 +240,7 @@ const SortingVisualizer = () => {
 
   return (
     <div className="text-center">
-      <h2 className="text-xl font-bold mb-4">
-        Sorting Visualizer (D3 Edition)
-      </h2>
+      <h2 className="text-xl font-bold mb-4">Sorting Visualizer</h2>
 
       {/* Slider for adjusting speed */}
       <div className="mb-4">
@@ -258,7 +261,7 @@ const SortingVisualizer = () => {
         <input
           type="range"
           min="5"
-          max="50"
+          max="25"
           value={arraySize}
           onChange={(e) => setArraySize(Number(e.target.value))}
         />
@@ -312,7 +315,11 @@ const SortingVisualizer = () => {
       </div>
 
       {/* SVG container for bars */}
-      <svg ref={svgRef} width="600" height="300" className="mx-auto" />
+      <svg
+        ref={svgRef}
+        className="w-full h-96 mx-auto"
+        preserveAspectRatio="none"
+      />
     </div>
   );
 };
