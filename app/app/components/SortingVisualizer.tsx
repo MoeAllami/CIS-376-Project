@@ -1,13 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import * as d3 from "d3";
 
+interface SortResult {
+  steps: number[][];
+  highlights: number[][]; // Parallel array describing which indices to highlight in each step
+}
+
 const SortingVisualizer = () => {
   // SVG reference for D3 to operate on.
   const svgRef = useRef<SVGSVGElement>(null);
 
   // State variables
   const [array, setArray] = useState<number[]>([]); // Current array
-  const [steps, setSteps] = useState<number[][]>([]); // List of all steps (snapshots) for the chosen algorithm
+  const [steps, setSteps] = useState<number[][]>([]); // List of all steps (snapshots)
+  const [highlights, setHighlights] = useState<number[][]>([]); // Highlight info for each step
   const [currentStep, setCurrentStep] = useState(0); // Current step index
   const [speed, setSpeed] = useState(300); // Playback speed (ms) used in transitions
   const [arraySize, setArraySize] = useState(10); // Number of elements in the array
@@ -15,68 +21,78 @@ const SortingVisualizer = () => {
   const [isPlaying, setIsPlaying] = useState(false); // Is the animation playing?
   const intervalRef = useRef<NodeJS.Timeout | null>(null); // Reference for the playback interval
 
-  // Function to generate a random array based on the current arraySize
+  // Generate a random array
   const generateArray = () => {
     const newArray = Array.from({ length: arraySize }, () =>
       Math.floor(Math.random() * 100 + 10)
     );
     setArray(newArray);
 
-    // Reset any existing steps and step index whenever a new array is generated
-    // but also immediately compute steps for the selected algorithm.
-    let recordedSteps: number[][] = [];
-
+    // Decide which sort to run:
+    let sortResult: SortResult;
     switch (selectedAlgorithm) {
       case "bubble":
-        recordedSteps = computeBubbleSortSteps(newArray);
+        sortResult = computeBubbleSortSteps(newArray);
         break;
       case "selection":
-        recordedSteps = computeSelectionSortSteps(newArray);
+        sortResult = computeSelectionSortSteps(newArray);
         break;
       case "insertion":
-        recordedSteps = computeInsertionSortSteps(newArray);
+        sortResult = computeInsertionSortSteps(newArray);
         break;
       case "quick":
-        recordedSteps = computeQuickSortSteps(newArray);
+        sortResult = computeQuickSortSteps(newArray);
         break;
       default:
-        recordedSteps = [[...newArray]]; // fallback
+        // Fallback: no highlights, just single-step array
+        sortResult = {
+          steps: [[...newArray]],
+          highlights: [[]],
+        };
         break;
     }
 
-    setSteps(recordedSteps);
+    // Store in state
+    setSteps(sortResult.steps);
+    setHighlights(sortResult.highlights);
     setCurrentStep(0);
   };
 
-  // Re-generate the array when arraySize changes
   useEffect(() => {
     if (currentStep === steps.length - 1 || steps.length === 0) {
       generateArray();
     }
   }, [arraySize]);
 
-  // Bubble Sort Steps
-  // Captures array state after each swap.
-  const computeBubbleSortSteps = (inputArray: number[]) => {
+  useEffect(() => {
+    generateArray();
+  }, [selectedAlgorithm]);
+
+  // Bubble Sort
+  const computeBubbleSortSteps = (inputArray: number[]): SortResult => {
     const arr = [...inputArray];
-    const result: number[][] = [[...arr]]; // initial snapshot
+    const steps: number[][] = [[...arr]];
+    const highlights: number[][] = [[]]; // parallel to steps
 
     for (let i = 0; i < arr.length - 1; i++) {
       for (let j = 0; j < arr.length - i - 1; j++) {
+        // Compare and swap
         if (arr[j] > arr[j + 1]) {
           [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
-          result.push([...arr]); // push snapshot each time we swap
+          steps.push([...arr]);
+          highlights.push([j, j + 1]); // highlight the swapped bars
         }
       }
     }
-    return result;
+
+    return { steps, highlights };
   };
 
-  // Selection Sort Steps
-  // Find the minimum in the unsorted region and swap.
-  const computeSelectionSortSteps = (inputArray: number[]) => {
+  // Selection sort
+  const computeSelectionSortSteps = (inputArray: number[]): SortResult => {
     const arr = [...inputArray];
-    const result: number[][] = [[...arr]]; // initial snapshot
+    const steps: number[][] = [[...arr]];
+    const highlights: number[][] = [[]];
 
     for (let i = 0; i < arr.length - 1; i++) {
       let minIndex = i;
@@ -85,20 +101,21 @@ const SortingVisualizer = () => {
           minIndex = j;
         }
       }
-      // Only swap if different
       if (minIndex !== i) {
         [arr[i], arr[minIndex]] = [arr[minIndex], arr[i]];
-        result.push([...arr]); // push snapshot after swapping
+        steps.push([...arr]);
+        highlights.push([i, minIndex]); // highlight the two swapped bars
       }
     }
-    return result;
+
+    return { steps, highlights };
   };
 
-  // Insertion Sort Steps
-  // Insert each element into its correct position in the sorted portion.
-  const computeInsertionSortSteps = (inputArray: number[]) => {
+  // Insertion Sort
+  const computeInsertionSortSteps = (inputArray: number[]): SortResult => {
     const arr = [...inputArray];
-    const result: number[][] = [[...arr]]; // initial snapshot
+    const steps: number[][] = [[...arr]];
+    const highlights: number[][] = [[]];
 
     for (let i = 1; i < arr.length; i++) {
       let key = arr[i];
@@ -106,23 +123,25 @@ const SortingVisualizer = () => {
       while (j >= 0 && arr[j] > key) {
         arr[j + 1] = arr[j];
         j = j - 1;
-        result.push([...arr]); // push snapshot after each shift
+        steps.push([...arr]);
+        highlights.push([j + 1, j + 2]); // highlight the shift
       }
       arr[j + 1] = key;
-      result.push([...arr]); // snapshot after placing the key
+      steps.push([...arr]);
+      highlights.push([j + 1]); // highlight final position of 'key'
     }
 
-    return result;
+    return { steps, highlights };
   };
 
-  // Quick Sort Steps
-  // Partition function that returns the pivot index, pushing states to result.
+  // Quick Sort
   const partition = (
     arr: number[],
     low: number,
     high: number,
-    result: number[][]
-  ) => {
+    steps: number[][],
+    highlights: number[][]
+  ): number => {
     const pivot = arr[high];
     let i = low - 1;
 
@@ -130,36 +149,41 @@ const SortingVisualizer = () => {
       if (arr[j] < pivot) {
         i++;
         [arr[i], arr[j]] = [arr[j], arr[i]];
-        result.push([...arr]); // snapshot after each swap
+        steps.push([...arr]);
+        highlights.push([i, j]); // highlight swapped indices
       }
     }
     [arr[i + 1], arr[high]] = [arr[high], arr[i + 1]];
-    result.push([...arr]); // pivot placed
+    steps.push([...arr]);
+    highlights.push([i + 1, high]); // highlight pivot swap
     return i + 1;
   };
 
-  // Recursive quick sort that accumulates states in "result".
   const quickSortRecursive = (
     arr: number[],
     low: number,
     high: number,
-    result: number[][]
+    steps: number[][],
+    highlights: number[][]
   ) => {
     if (low < high) {
-      const pi = partition(arr, low, high, result);
-      quickSortRecursive(arr, low, pi - 1, result);
-      quickSortRecursive(arr, pi + 1, high, result);
+      const pi = partition(arr, low, high, steps, highlights);
+      quickSortRecursive(arr, low, pi - 1, steps, highlights);
+      quickSortRecursive(arr, pi + 1, high, steps, highlights);
     }
   };
 
-  const computeQuickSortSteps = (inputArray: number[]) => {
+  const computeQuickSortSteps = (inputArray: number[]): SortResult => {
     const arr = [...inputArray];
-    const result: number[][] = [[...arr]]; // initial snapshot
-    quickSortRecursive(arr, 0, arr.length - 1, result);
-    return result;
+    const steps: number[][] = [[...arr]];
+    const highlights: number[][] = [[]];
+
+    quickSortRecursive(arr, 0, arr.length - 1, steps, highlights);
+    return { steps, highlights };
   };
 
-  // Renders the current step in steps[currentStep] whenever it changes.
+  //  Renders the current step in steps[currentStep] whenever it changes.
+  //  We also read "highlights" for that step to color them differently.
   useEffect(() => {
     if (!svgRef.current || steps.length === 0) return;
 
@@ -167,7 +191,9 @@ const SortingVisualizer = () => {
     const width = svgRef.current.clientWidth;
     const height = svgRef.current.clientHeight;
     const data = steps[currentStep];
+    const highlightIndices = highlights[currentStep] || [];
 
+    // Controls spacing between bars
     const gap = 10;
     const barWidth = width / data.length;
     const actualBarWidth = barWidth - gap;
@@ -183,7 +209,10 @@ const SortingVisualizer = () => {
       .attr("y", (d) => height - d * 2)
       .attr("width", actualBarWidth)
       .attr("height", (d) => d * 2)
-      .attr("fill", "steelblue");
+      // Use orange if this bar is highlighted, else steelblue
+      .attr("fill", (_, i) =>
+        highlightIndices.includes(i) ? "orange" : "steelblue"
+      );
 
     // Transition for text labels
     svg
@@ -198,9 +227,9 @@ const SortingVisualizer = () => {
       .attr("text-anchor", "middle")
       .attr("fill", "white")
       .attr("font-size", 12);
-  }, [steps, currentStep, speed]);
+  }, [steps, highlights, currentStep, speed]);
 
-  // Play continuous steps.
+  // Play function
   const play = () => {
     if (currentStep >= steps.length - 1) return; // Nothing to play if at last step
 
@@ -218,26 +247,26 @@ const SortingVisualizer = () => {
     }, speed);
   };
 
-  // Pause/Stop the animation.
+  //  Pause or Stop
   const pause = () => {
     setIsPlaying(false);
     if (intervalRef.current) clearInterval(intervalRef.current);
   };
 
-  // Move one step forward
+  //  Step Forward / Step Back
   const stepForward = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     }
   };
 
-  // Move one step backward
   const stepBack = () => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
     }
   };
 
+  //  JSX Layout
   return (
     <div className="text-center">
       <h2 className="text-xl font-bold mb-4">Sorting Visualizer</h2>
