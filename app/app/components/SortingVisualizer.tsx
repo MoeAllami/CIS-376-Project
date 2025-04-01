@@ -1,168 +1,248 @@
 import { useState, useEffect, useRef } from "react";
+import * as d3 from "d3";
 
-// Define a functional component called "Sorting Visualizer"
 const SortingVisualizer = () => {
-  const [array, setArray] = useState<number[]>([]);
-  const [speed, setSpeed] = useState(300); // Delay in milliseconds for visualization
+  // SVG reference for D3 to operate on.
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  // State variables
+  const [array, setArray] = useState<number[]>([]); // Current array
+  const [steps, setSteps] = useState<number[][]>([]); // List of all steps (snapshots) for the chosen algorithm
+  const [currentStep, setCurrentStep] = useState(0); // Current step index
+  const [speed, setSpeed] = useState(300); // Playback speed (ms) used in transitions
   const [arraySize, setArraySize] = useState(10); // Number of elements in the array
-  const [isSorting, setIsSorting] = useState(false); // Flag for start/stop control
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState("bubble"); // Default algorithm
-  const stopRef = useRef(false); // Reference for pausing
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState("bubble"); // Chosen sorting algorithm
+  const [isPlaying, setIsPlaying] = useState(false); // Is the animation playing?
+  const intervalRef = useRef<NodeJS.Timeout | null>(null); // Reference for the playback interval
 
-  // Ensures an array is generated immediately and when size changes
-  useEffect(() => {
-    generateArray();
-  }, [arraySize]);
-
-  // Function to generate a random array
+  // Function to generate a random array based on the current arraySize
   const generateArray = () => {
     const newArray = Array.from({ length: arraySize }, () =>
       Math.floor(Math.random() * 100 + 10)
     );
     setArray(newArray);
+
+    // Reset any existing steps and step index whenever a new array is generated
+    setSteps([]);
+    setCurrentStep(0);
   };
 
-  // Helper function to create delay
-  const delay = (ms: number) =>
-    new Promise<void>((res) => {
-      const timer = setTimeout(() => {
-        if (!stopRef.current) res();
-        else clearTimeout(timer);
-      }, ms);
-    });
+  // Re-generate the array when arraySize changes
+  useEffect(() => {
+    generateArray();
+  }, [arraySize]);
 
-  // Defines an asynchronous function for using bubble sort
-  const bubbleSort = async () => {
-    let arr = [...array];
-    let n = arr.length;
+  // Bubble Sort Steps
+  // Captures array state after each swap.
+  const computeBubbleSortSteps = (inputArray: number[]) => {
+    const arr = [...inputArray];
+    const result: number[][] = [[...arr]]; // initial snapshot
 
-    for (let i = 0; i < n - 1 && !stopRef.current; i++) {
-      for (let j = 0; j < n - i - 1 && !stopRef.current; j++) {
+    for (let i = 0; i < arr.length - 1; i++) {
+      for (let j = 0; j < arr.length - i - 1; j++) {
         if (arr[j] > arr[j + 1]) {
-          [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]]; // Swap
-          setArray([...arr]); // Used to update the UI with the new array state
-          await delay(speed); // Delay for visualization
+          [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
+          result.push([...arr]); // push snapshot each time we swap
         }
       }
     }
+    return result;
   };
 
-  // Defines an asynchronous function for using selection sort
-  const selectionSort = async () => {
-    let arr = [...array];
-    let n = arr.length;
+  // Selection Sort Steps
+  // Find the minimum in the unsorted region and swap.
+  const computeSelectionSortSteps = (inputArray: number[]) => {
+    const arr = [...inputArray];
+    const result: number[][] = [[...arr]]; // initial snapshot
 
-    for (let i = 0; i < n - 1 && !stopRef.current; i++) {
-      let min_idx = i; // Assume the current position holds the minimum element
-
-      // Iterate through the unsorted portion to find the actual minimum
-      for (let j = i + 1; j < n && !stopRef.current; j++) {
-        if (arr[j] < arr[min_idx]) {
-          // Update min if a smaller element is found
-          min_idx = j;
+    for (let i = 0; i < arr.length - 1; i++) {
+      let minIndex = i;
+      for (let j = i + 1; j < arr.length; j++) {
+        if (arr[j] < arr[minIndex]) {
+          minIndex = j;
         }
       }
-
-      [arr[i], arr[min_idx]] = [arr[min_idx], arr[i]]; // Swap
-      setArray([...arr]); // Used to update the UI with the new array state
-      await delay(speed); // Delay for visualization
+      // Only swap if different
+      if (minIndex !== i) {
+        [arr[i], arr[minIndex]] = [arr[minIndex], arr[i]];
+        result.push([...arr]); // push snapshot after swapping
+      }
     }
+    return result;
   };
 
-  // Defines an asynchronous function for using insertion sort
-  const insertionSort = async () => {
-    let arr = [...array];
-    for (let i = 1; i < arr.length && !stopRef.current; i++) {
+  // Insertion Sort Steps
+  // Insert each element into its correct position in the sorted portion.
+  const computeInsertionSortSteps = (inputArray: number[]) => {
+    const arr = [...inputArray];
+    const result: number[][] = [[...arr]]; // initial snapshot
+
+    for (let i = 1; i < arr.length; i++) {
       let key = arr[i];
       let j = i - 1;
-      // Move elements greater than key to one position ahead of current position
-      while (j >= 0 && arr[j] > key && !stopRef.current) {
+      while (j >= 0 && arr[j] > key) {
         arr[j + 1] = arr[j];
         j = j - 1;
+        result.push([...arr]); // push snapshot after each shift
       }
       arr[j + 1] = key;
-      setArray([...arr]); // Update UI with new array state
-      await delay(speed); // Delay for visualization
+      result.push([...arr]); // snapshot after placing the key
     }
+
+    return result;
   };
 
-  // Function to swap numbers in an array
-  function swap(arr: number[], i: number, j: number) {
-    let temp = arr[i];
-    arr[i] = arr[j];
-    arr[j] = temp;
-  }
-
-  // Function used to partition the array during quick sort
-  async function partition(arr: number[], low: number, high: number) {
-    // Select pivot
-    let pivot = arr[high];
-    // The right position of the pivot so far
+  // Quick Sort Steps
+  // Partition function that returns the pivot index, pushing states to result.
+  const partition = (
+    arr: number[],
+    low: number,
+    high: number,
+    result: number[][]
+  ) => {
+    const pivot = arr[high];
     let i = low - 1;
 
-    // Move smaller elements to the left
-    for (let j = low; j <= high - 1 && !stopRef.current; j++) {
+    for (let j = low; j < high; j++) {
       if (arr[j] < pivot) {
         i++;
-        swap(arr, i, j);
-        setArray([...arr]);
-        await delay(speed); // Delay for visualization
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+        result.push([...arr]); // snapshot after each swap
       }
     }
-
-    // Move pivot after smaller elements and return its position
-    swap(arr, i + 1, high);
-    setArray([...arr]);
-    await delay(speed); // Delay for visualization
+    [arr[i + 1], arr[high]] = [arr[high], arr[i + 1]];
+    result.push([...arr]); // pivot placed
     return i + 1;
-  }
+  };
 
-  // QuickSort recursive function
-  const quickSort = async (arr: number[], low: number, high: number) => {
-    if (low < high && !stopRef.current) {
-      // set partition return index of pivot
-      let pi = await partition(arr, low, high);
-
-      // Recursion calls for smaller elements and >= elements
-      await quickSort(arr, low, pi - 1);
-      await quickSort(arr, pi + 1, high);
+  // Recursive quick sort that accumulates states in "result".
+  const quickSortRecursive = (
+    arr: number[],
+    low: number,
+    high: number,
+    result: number[][]
+  ) => {
+    if (low < high) {
+      const pi = partition(arr, low, high, result);
+      quickSortRecursive(arr, low, pi - 1, result);
+      quickSortRecursive(arr, pi + 1, high, result);
     }
   };
 
-  // Initiate sorting based on selected algorithm
-  const startSort = async () => {
-    stopRef.current = false;
-    setIsSorting(true);
-    let arr = [...array];
+  const computeQuickSortSteps = (inputArray: number[]) => {
+    const arr = [...inputArray];
+    const result: number[][] = [[...arr]]; // initial snapshot
+    quickSortRecursive(arr, 0, arr.length - 1, result);
+    return result;
+  };
+
+  // Called when we want to compute steps for the chosen algorithm.
+  const prepareSteps = () => {
+    let recordedSteps: number[][] = [];
+
     switch (selectedAlgorithm) {
       case "bubble":
-        await bubbleSort();
+        recordedSteps = computeBubbleSortSteps(array);
         break;
       case "selection":
-        await selectionSort();
+        recordedSteps = computeSelectionSortSteps(array);
         break;
       case "insertion":
-        await insertionSort();
+        recordedSteps = computeInsertionSortSteps(array);
         break;
       case "quick":
-        await quickSort(arr, 0, arr.length - 1);
+        recordedSteps = computeQuickSortSteps(array);
         break;
       default:
+        recordedSteps = [[...array]]; // fallback
         break;
     }
-    setIsSorting(false);
+
+    setSteps(recordedSteps);
+    setCurrentStep(0);
   };
 
-  // Function to stop/pause sorting
-  const stopSort = () => {
-    stopRef.current = true;
-    setIsSorting(false);
+  // Renders the current step in steps[currentStep] whenever it changes.
+  useEffect(() => {
+    if (!svgRef.current || steps.length === 0) return;
+
+    const svg = d3.select(svgRef.current);
+    const width = 600;
+    const height = 300;
+    const data = steps[currentStep];
+    const barWidth = width / data.length;
+
+    // Transition for rectangles
+    svg
+      .selectAll("rect")
+      .data(data, (d, i) => i)
+      .join("rect")
+      .transition()
+      .duration(speed / 1.2)
+      .attr("x", (_, i) => i * barWidth)
+      .attr("y", (d) => height - d * 2)
+      .attr("width", barWidth - 2)
+      .attr("height", (d) => d * 2)
+      .attr("fill", "steelblue");
+
+    // Transition for text labels
+    const textSelection = svg.selectAll("text").data(data);
+
+    textSelection
+      .join("text")
+      .transition()
+      .duration(speed / 1.2)
+      .text((d) => d)
+      .attr("x", (_, i) => i * barWidth + (barWidth - 2) / 2)
+      .attr("y", (d) => height - d * 2 - 5)
+      .attr("text-anchor", "middle")
+      .attr("fill", "white")
+      .attr("font-size", 12);
+  }, [steps, currentStep, speed]);
+
+  // Play continuous steps.
+  const play = () => {
+    if (currentStep >= steps.length - 1) return; // Nothing to play if at last step
+
+    setIsPlaying(true);
+    intervalRef.current = setInterval(() => {
+      setCurrentStep((prev) => {
+        if (prev >= steps.length - 1) {
+          // If we've reached the last step, stop.
+          clearInterval(intervalRef.current!);
+          setIsPlaying(false);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, speed);
   };
 
-  // JSX rendering with tailwind css
+  // Pause/Stop the animation.
+  const pause = () => {
+    setIsPlaying(false);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+  };
+
+  // Move one step forward
+  const stepForward = () => {
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  // Move one step backward
+  const stepBack = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
   return (
     <div className="text-center">
-      <h2 className="text-xl font-bold mb-4">Sorting Visualizer</h2>
+      <h2 className="text-xl font-bold mb-4">
+        Sorting Visualizer (D3 Edition)
+      </h2>
 
       {/* Slider for adjusting speed */}
       <div className="mb-4">
@@ -205,40 +285,45 @@ const SortingVisualizer = () => {
         </select>
       </div>
 
-      <button
-        onClick={generateArray}
-        className="bg-blue-500 text-white p-2 m-2 rounded"
-      >
-        Generate New Array
-      </button>
-
-      <button
-        onClick={startSort}
-        disabled={isSorting}
-        className="bg-green-600 text-white p-2 m-1 rounded"
-      >
-        Start
-      </button>
-      <button
-        onClick={stopSort}
-        disabled={!isSorting}
-        className="bg-red-600 text-white p-2 m-1 rounded"
-      >
-        Stop
-      </button>
-
-      {/* Bar visual representation of the array */}
-      <div className="flex justify-center items-end mt-4 space-x-1 h-60">
-        {array.map((value, idx) => (
-          <div
-            key={idx}
-            className="bg-green-500 text-black flex items-end justify-center"
-            style={{ height: `${value * 2}px`, width: "20px" }}
-          >
-            {value}
-          </div>
-        ))}
+      {/* Control buttons */}
+      <div className="space-x-2 mb-4">
+        <button
+          onClick={generateArray}
+          className="bg-blue-500 text-white p-2 rounded"
+        >
+          Generate New Array
+        </button>
+        <button
+          onClick={prepareSteps}
+          className="bg-yellow-500 text-white p-2 rounded"
+        >
+          Load Steps
+        </button>
+        {/* Step Back button */}
+        <button
+          onClick={stepBack}
+          className="bg-gray-600 text-white p-2 rounded"
+        >
+          ◀ Step Back
+        </button>
+        {/* Play/Pause toggle button */}
+        <button
+          onClick={isPlaying ? pause : play}
+          className="bg-green-600 text-white p-2 rounded"
+        >
+          {isPlaying ? "Pause" : "Play"}
+        </button>
+        {/* Step Forward button */}
+        <button
+          onClick={stepForward}
+          className="bg-gray-600 text-white p-2 rounded"
+        >
+          Step Forward ▶
+        </button>
       </div>
+
+      {/* SVG container for bars */}
+      <svg ref={svgRef} width="600" height="300" className="mx-auto" />
     </div>
   );
 };
