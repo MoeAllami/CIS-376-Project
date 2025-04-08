@@ -16,6 +16,8 @@ const SortingVisualizer = () => {
   const [array, setArray] = useState<number[]>([]); // Current array
   const [steps, setSteps] = useState<number[][]>([]); // List of all steps (snapshots)
   const [highlights, setHighlights] = useState<number[][]>([]); // Highlight info for each step
+  const [descriptions, setDescriptions] = useState<string[]>([]); // Step by step descriptions
+  const [sortedIndices, setSortedIndices] = useState<number[][]>([]); // Keeps state of currently sorted indices
   const [currentStep, setCurrentStep] = useState(0); // Current step index
   const [speed, setSpeed] = useState(300); // Playback speed (ms) used in transitions
   const [arraySize, setArraySize] = useState(10); // Number of elements in the array
@@ -50,6 +52,8 @@ const SortingVisualizer = () => {
         sortResult = {
           steps: [[...newArray]],
           highlights: [[]],
+          descriptions: ["Initial array"],
+          sortedIndices: [[]],
         };
         break;
     }
@@ -57,6 +61,8 @@ const SortingVisualizer = () => {
     // Store in state
     setSteps(sortResult.steps);
     setHighlights(sortResult.highlights);
+    setDescriptions(sortResult.descriptions);
+    setSortedIndices(sortResult.sortedIndices);
     setCurrentStep(0);
   };
 
@@ -80,6 +86,7 @@ const SortingVisualizer = () => {
     const height = svgRef.current.clientHeight;
     const data = steps[currentStep];
     const highlightIndices = highlights[currentStep] || [];
+    const sorted = sortedIndices[currentStep] || [];
 
     // Controls spacing between bars
     const gap = 10;
@@ -97,10 +104,12 @@ const SortingVisualizer = () => {
       .attr("y", (d) => height - d * 2)
       .attr("width", actualBarWidth)
       .attr("height", (d) => d * 2)
-      // Use orange if this bar is highlighted, else steelblue
-      .attr("fill", (_, i) =>
-        highlightIndices.includes(i) ? "orange" : "steelblue"
-      );
+      // Use orange if highlighted, green if sorted, else steelblue
+      .attr("fill", (_, i) => {
+        if (highlightIndices.includes(i)) return "orange";
+        if (sorted.includes(i)) return "green";
+        return "steelblue";
+      });
 
     // Transition for text labels
     svg
@@ -115,7 +124,7 @@ const SortingVisualizer = () => {
       .attr("text-anchor", "middle")
       .attr("fill", "white")
       .attr("font-size", 12);
-  }, [steps, highlights, currentStep, speed]);
+  }, [steps, highlights, sortedIndices, currentStep, speed]);
 
   // Play function
   const play = () => {
@@ -237,6 +246,12 @@ const SortingVisualizer = () => {
         className="w-full h-96 mx-auto"
         preserveAspectRatio="none"
       />
+      {/* Step Description */}
+      <div className="mt-4">
+        <p className="text-lg font-medium">
+          Step {currentStep + 1}: {descriptions[currentStep] || "Processing..."}
+        </p>
+      </div>
     </div>
   );
 };
