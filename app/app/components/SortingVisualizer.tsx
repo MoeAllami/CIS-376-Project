@@ -251,6 +251,13 @@ const SortingVisualizer = () => {
         <p className="text-lg font-medium">
           Step {currentStep + 1}: {descriptions[currentStep] || "Processing..."}
         </p>
+        {selectedAlgorithm === "quick" && (
+          <p className="text-sm text-gray-400 italic">
+            (Note: Quick Sort doesn't highlight sorted items until the end
+            because they are not guaranteed to be in final position until all
+            recursive calls finish.)
+          </p>
+        )}
       </div>
     </div>
   );
