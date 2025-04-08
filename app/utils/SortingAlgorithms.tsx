@@ -1,5 +1,3 @@
-// SortingAlgorithms.tsx
-
 export interface SortResult {
   steps: number[][];
   highlights: number[][];

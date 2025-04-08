@@ -253,9 +253,8 @@ const SortingVisualizer = () => {
         </p>
         {selectedAlgorithm === "quick" && (
           <p className="text-sm text-gray-400 italic">
-            (Note: Quick Sort doesn't highlight sorted items until the end
-            because they are not guaranteed to be in final position until all
-            recursive calls finish.)
+            (Note: Quick Sort uses divide and conquer — highlighted subarray is
+            the current recursive partition.)
           </p>
         )}
       </div>
