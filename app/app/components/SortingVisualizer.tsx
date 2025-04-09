@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import * as d3 from "d3";
+import {
+  computeBubbleSortSteps,
+  computeSelectionSortSteps,
+  computeInsertionSortSteps,
+  computeQuickSortSteps,
+  SortResult,
+} from "../../utils/SortingAlgorithms";
 
 const SortingVisualizer = () => {
   // SVG reference for D3 to operate on.
@@ -7,7 +14,10 @@ const SortingVisualizer = () => {
 
   // State variables
   const [array, setArray] = useState<number[]>([]); // Current array
-  const [steps, setSteps] = useState<number[][]>([]); // List of all steps (snapshots) for the chosen algorithm
+  const [steps, setSteps] = useState<number[][]>([]); // List of all steps (snapshots)
+  const [highlights, setHighlights] = useState<number[][]>([]); // Highlight info for each step
+  const [descriptions, setDescriptions] = useState<string[]>([]); // Step by step descriptions
+  const [sortedIndices, setSortedIndices] = useState<number[][]>([]); // Keeps state of currently sorted indices
   const [currentStep, setCurrentStep] = useState(0); // Current step index
   const [speed, setSpeed] = useState(300); // Playback speed (ms) used in transitions
   const [arraySize, setArraySize] = useState(10); // Number of elements in the array
@@ -15,157 +25,73 @@ const SortingVisualizer = () => {
   const [isPlaying, setIsPlaying] = useState(false); // Is the animation playing?
   const intervalRef = useRef<NodeJS.Timeout | null>(null); // Reference for the playback interval
 
-  // Function to generate a random array based on the current arraySize
+  // Generate a random array
   const generateArray = () => {
     const newArray = Array.from({ length: arraySize }, () =>
       Math.floor(Math.random() * 100 + 10)
     );
     setArray(newArray);
 
-    // Reset any existing steps and step index whenever a new array is generated
-    // but also immediately compute steps for the selected algorithm.
-    let recordedSteps: number[][] = [];
-
+    // Decide which sort to run:
+    let sortResult: SortResult;
     switch (selectedAlgorithm) {
       case "bubble":
-        recordedSteps = computeBubbleSortSteps(newArray);
+        sortResult = computeBubbleSortSteps(newArray);
         break;
       case "selection":
-        recordedSteps = computeSelectionSortSteps(newArray);
+        sortResult = computeSelectionSortSteps(newArray);
         break;
       case "insertion":
-        recordedSteps = computeInsertionSortSteps(newArray);
+        sortResult = computeInsertionSortSteps(newArray);
         break;
       case "quick":
-        recordedSteps = computeQuickSortSteps(newArray);
+        sortResult = computeQuickSortSteps(newArray);
         break;
       default:
-        recordedSteps = [[...newArray]]; // fallback
+        // Fallback: no highlights, just single-step array
+        sortResult = {
+          steps: [[...newArray]],
+          highlights: [[]],
+          descriptions: ["Initial array"],
+          sortedIndices: [[]],
+        };
         break;
     }
 
-    setSteps(recordedSteps);
+    // Store in state
+    setSteps(sortResult.steps);
+    setHighlights(sortResult.highlights);
+    setDescriptions(sortResult.descriptions);
+    setSortedIndices(sortResult.sortedIndices);
     setCurrentStep(0);
   };
 
-  // Re-generate the array when arraySize changes
   useEffect(() => {
-    generateArray();
+    if (currentStep === steps.length - 1 || steps.length === 0) {
+      generateArray();
+    }
   }, [arraySize]);
 
-  // Bubble Sort Steps
-  // Captures array state after each swap.
-  const computeBubbleSortSteps = (inputArray: number[]) => {
-    const arr = [...inputArray];
-    const result: number[][] = [[...arr]]; // initial snapshot
+  useEffect(() => {
+    generateArray();
+  }, [selectedAlgorithm]);
 
-    for (let i = 0; i < arr.length - 1; i++) {
-      for (let j = 0; j < arr.length - i - 1; j++) {
-        if (arr[j] > arr[j + 1]) {
-          [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
-          result.push([...arr]); // push snapshot each time we swap
-        }
-      }
-    }
-    return result;
-  };
-
-  // Selection Sort Steps
-  // Find the minimum in the unsorted region and swap.
-  const computeSelectionSortSteps = (inputArray: number[]) => {
-    const arr = [...inputArray];
-    const result: number[][] = [[...arr]]; // initial snapshot
-
-    for (let i = 0; i < arr.length - 1; i++) {
-      let minIndex = i;
-      for (let j = i + 1; j < arr.length; j++) {
-        if (arr[j] < arr[minIndex]) {
-          minIndex = j;
-        }
-      }
-      // Only swap if different
-      if (minIndex !== i) {
-        [arr[i], arr[minIndex]] = [arr[minIndex], arr[i]];
-        result.push([...arr]); // push snapshot after swapping
-      }
-    }
-    return result;
-  };
-
-  // Insertion Sort Steps
-  // Insert each element into its correct position in the sorted portion.
-  const computeInsertionSortSteps = (inputArray: number[]) => {
-    const arr = [...inputArray];
-    const result: number[][] = [[...arr]]; // initial snapshot
-
-    for (let i = 1; i < arr.length; i++) {
-      let key = arr[i];
-      let j = i - 1;
-      while (j >= 0 && arr[j] > key) {
-        arr[j + 1] = arr[j];
-        j = j - 1;
-        result.push([...arr]); // push snapshot after each shift
-      }
-      arr[j + 1] = key;
-      result.push([...arr]); // snapshot after placing the key
-    }
-
-    return result;
-  };
-
-  // Quick Sort Steps
-  // Partition function that returns the pivot index, pushing states to result.
-  const partition = (
-    arr: number[],
-    low: number,
-    high: number,
-    result: number[][]
-  ) => {
-    const pivot = arr[high];
-    let i = low - 1;
-
-    for (let j = low; j < high; j++) {
-      if (arr[j] < pivot) {
-        i++;
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-        result.push([...arr]); // snapshot after each swap
-      }
-    }
-    [arr[i + 1], arr[high]] = [arr[high], arr[i + 1]];
-    result.push([...arr]); // pivot placed
-    return i + 1;
-  };
-
-  // Recursive quick sort that accumulates states in "result".
-  const quickSortRecursive = (
-    arr: number[],
-    low: number,
-    high: number,
-    result: number[][]
-  ) => {
-    if (low < high) {
-      const pi = partition(arr, low, high, result);
-      quickSortRecursive(arr, low, pi - 1, result);
-      quickSortRecursive(arr, pi + 1, high, result);
-    }
-  };
-
-  const computeQuickSortSteps = (inputArray: number[]) => {
-    const arr = [...inputArray];
-    const result: number[][] = [[...arr]]; // initial snapshot
-    quickSortRecursive(arr, 0, arr.length - 1, result);
-    return result;
-  };
-
-  // Renders the current step in steps[currentStep] whenever it changes.
+  //  Renders the current step in steps[currentStep] whenever it changes.
+  //  We also read "highlights" for that step to color them differently.
   useEffect(() => {
     if (!svgRef.current || steps.length === 0) return;
 
     const svg = d3.select(svgRef.current);
-    const width = 600;
-    const height = 300;
+    const width = svgRef.current.clientWidth;
+    const height = svgRef.current.clientHeight;
     const data = steps[currentStep];
+    const highlightIndices = highlights[currentStep] || [];
+    const sorted = sortedIndices[currentStep] || [];
+
+    // Controls spacing between bars
+    const gap = 10;
     const barWidth = width / data.length;
+    const actualBarWidth = barWidth - gap;
 
     // Transition for rectangles
     svg
@@ -176,26 +102,31 @@ const SortingVisualizer = () => {
       .duration(speed / 1.2)
       .attr("x", (_, i) => i * barWidth)
       .attr("y", (d) => height - d * 2)
-      .attr("width", barWidth - 2)
+      .attr("width", actualBarWidth)
       .attr("height", (d) => d * 2)
-      .attr("fill", "steelblue");
+      // Use orange if highlighted, green if sorted, else steelblue
+      .attr("fill", (_, i) => {
+        if (highlightIndices.includes(i)) return "orange";
+        if (sorted.includes(i)) return "green";
+        return "steelblue";
+      });
 
     // Transition for text labels
-    const textSelection = svg.selectAll("text").data(data);
-
-    textSelection
+    svg
+      .selectAll("text")
+      .data(data)
       .join("text")
       .transition()
       .duration(speed / 1.2)
       .text((d) => d)
-      .attr("x", (_, i) => i * barWidth + (barWidth - 2) / 2)
+      .attr("x", (_, i) => i * barWidth + actualBarWidth / 2)
       .attr("y", (d) => height - d * 2 - 5)
       .attr("text-anchor", "middle")
       .attr("fill", "white")
       .attr("font-size", 12);
-  }, [steps, currentStep, speed]);
+  }, [steps, highlights, sortedIndices, currentStep, speed]);
 
-  // Play continuous steps.
+  // Play function
   const play = () => {
     if (currentStep >= steps.length - 1) return; // Nothing to play if at last step
 
@@ -213,31 +144,29 @@ const SortingVisualizer = () => {
     }, speed);
   };
 
-  // Pause/Stop the animation.
+  //  Pause or Stop
   const pause = () => {
     setIsPlaying(false);
     if (intervalRef.current) clearInterval(intervalRef.current);
   };
 
-  // Move one step forward
+  //  Step Forward / Step Back
   const stepForward = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     }
   };
 
-  // Move one step backward
   const stepBack = () => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
     }
   };
 
+  //  JSX Layout
   return (
     <div className="text-center">
-      <h2 className="text-xl font-bold mb-4">
-        Sorting Visualizer (D3 Edition)
-      </h2>
+      <h2 className="text-xl font-bold mb-4">Sorting Visualizer</h2>
 
       {/* Slider for adjusting speed */}
       <div className="mb-4">
@@ -258,7 +187,7 @@ const SortingVisualizer = () => {
         <input
           type="range"
           min="5"
-          max="50"
+          max="25"
           value={arraySize}
           onChange={(e) => setArraySize(Number(e.target.value))}
         />
@@ -312,7 +241,23 @@ const SortingVisualizer = () => {
       </div>
 
       {/* SVG container for bars */}
-      <svg ref={svgRef} width="600" height="300" className="mx-auto" />
+      <svg
+        ref={svgRef}
+        className="w-full h-96 mx-auto"
+        preserveAspectRatio="none"
+      />
+      {/* Step Description */}
+      <div className="mt-4">
+        <p className="text-lg font-medium">
+          Step {currentStep + 1}: {descriptions[currentStep] || "Processing..."}
+        </p>
+        {selectedAlgorithm === "quick" && (
+          <p className="text-sm text-gray-400 italic">
+            (Note: Quick Sort uses divide and conquer — highlighted subarray is
+            the current recursive partition.)
+          </p>
+        )}
+      </div>
     </div>
   );
 };
