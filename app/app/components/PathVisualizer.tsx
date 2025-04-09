@@ -350,190 +350,36 @@ const PathVisualizer = () => {
   const getCellColor = (cell: CellType) => {
     switch (cell) {
       case "wall":
-        return "bg-gray-800";
+        return "bg-gray-700";
       case "start":
         return "bg-green-500";
       case "goal":
         return "bg-red-500";
       case "path":
-        return "bg-yellow-400";
+        return "bg-yellow-500";
       case "visited":
-        return "bg-blue-300";
+        return "bg-blue-700";
       case "current":
-        return "bg-purple-500";
+        return "bg-purple-600";
       default:
-        return "bg-white";
+        return "bg-gray-900";
     }
   };
 
   return (
-    <div className="flex flex-col items-center gap-4 p-4">
-      <h1 className="text-2xl font-bold mb-2">Pathfinding Visualizer</h1>
+    <div className="flex flex-col h-[calc(100vh-6rem)] bg-gray-900 text-gray-100">
+      <h1 className="text-2xl font-bold text-center py-3 text-blue-400">
+        Pathfinding Visualizer
+      </h1>
 
-      <div className="flex flex-wrap space-x-4 mb-4">
-        <div className="flex space-x-2 mb-2">
-          <button
-            className={`px-3 py-1 rounded ${
-              selectedTool === "wall" ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
-            onClick={() => setSelectedTool("wall")}
-            disabled={isVisualizing}
-          >
-            Wall
-          </button>
-          <button
-            className={`px-3 py-1 rounded ${
-              selectedTool === "start"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200"
-            }`}
-            onClick={() => setSelectedTool("start")}
-            disabled={isVisualizing}
-          >
-            Start
-          </button>
-          <button
-            className={`px-3 py-1 rounded ${
-              selectedTool === "goal" ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
-            onClick={() => setSelectedTool("goal")}
-            disabled={isVisualizing}
-          >
-            Goal
-          </button>
-          <button
-            className={`px-3 py-1 rounded ${
-              selectedTool === "eraser"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200"
-            }`}
-            onClick={() => setSelectedTool("eraser")}
-            disabled={isVisualizing}
-          >
-            Eraser
-          </button>
-        </div>
-
-        <select
-          className="px-3 py-1 border rounded mb-2"
-          value={selectedAlgorithm}
-          onChange={(e) => setSelectedAlgorithm(e.target.value as Algorithm)}
-          disabled={isVisualizing && !algorithmStepsGenerated}
-        >
-          <option value="a-star">A* Algorithm</option>
-          <option value="dfs">DFS Algorithm</option>
-        </select>
-
-        <button
-          className="px-3 py-1 bg-green-500 text-white rounded disabled:bg-gray-400 mb-2"
-          onClick={visualize}
-          disabled={isVisualizing && !algorithmStepsGenerated}
-        >
-          {isVisualizing && !algorithmStepsGenerated
-            ? "Generating..."
-            : "Visualize!"}
-        </button>
-
-        <button
-          className="px-3 py-1 bg-red-500 text-white rounded mb-2"
-          onClick={resetVisualization}
-        >
-          Reset
-        </button>
-
-        <button
-          className="px-3 py-1 bg-gray-500 text-white rounded mb-2"
-          onClick={initializeGrid}
-        >
-          Clear All
-        </button>
-      </div>
-
-      {/* Animation Controls - only shown when algorithm steps are generated */}
-      {algorithmStepsGenerated && animationSteps.length > 0 && (
-        <div className="mb-4 flex flex-wrap justify-center items-center gap-2">
-          <button
-            onClick={jumpToStart}
-            className="px-2 py-1 bg-purple-500 text-white rounded"
-          >
-            ⏮️ Start
-          </button>
-          <button
-            onClick={() => stepBackward(5)}
-            className="px-2 py-1 bg-purple-500 text-white rounded"
-          >
-            ⏪ -5 Steps
-          </button>
-          <button
-            onClick={() => stepBackward(1)}
-            className="px-2 py-1 bg-purple-500 text-white rounded"
-          >
-            ◀️ Step Back
-          </button>
-          {isPlaying ? (
-            <button
-              onClick={togglePlayPause}
-              className="px-2 py-1 bg-red-500 text-white rounded"
-            >
-              ⏸️ Pause
-            </button>
-          ) : (
-            <button
-              onClick={togglePlayPause}
-              className="px-2 py-1 bg-green-500 text-white rounded"
-            >
-              ▶️ Play
-            </button>
-          )}
-          <button
-            onClick={() => stepForward(1)}
-            className="px-2 py-1 bg-purple-500 text-white rounded"
-          >
-            ▶️ Step Forward
-          </button>
-          <button
-            onClick={() => stepForward(5)}
-            className="px-2 py-1 bg-purple-500 text-white rounded"
-          >
-            ⏩ +5 Steps
-          </button>
-          <button
-            onClick={jumpToEnd}
-            className="px-2 py-1 bg-purple-500 text-white rounded"
-          >
-            ⏭️ End
-          </button>
-
-          <div className="flex items-center ml-2">
-            <span className="mr-2">Speed:</span>
-            <input
-              type="range"
-              min="100"
-              max="500"
-              value={600 - animationSpeed}
-              onChange={handleSpeedChange}
-              className="w-32"
-            />
-          </div>
-
-          <div className="ml-2">
-            Step: {currentStepIndex + 1} / {animationSteps.length}
-          </div>
-        </div>
-      )}
-
-      <div
-        className="grid grid-cols-1 gap-0 border border-gray-300"
-        onMouseLeave={handleMouseUp}
-      >
+      <div className="grid grid-cols-1 flex-grow overflow-hidden border border-gray-700 mx-4 mb-4">
         {grid.map((row, rowIndex) => (
-          <div key={rowIndex} className="flex">
+          <div key={rowIndex} className="flex flex-grow">
             {row.map((cell, colIndex) => (
               <div
                 key={`${rowIndex}-${colIndex}`}
-                className={`w-6 h-6 border border-gray-200 ${getCellColor(
-                  cell
-                )}`}
+                className={`border border-gray-800 ${getCellColor(cell)}`}
+                style={{ width: "100%", height: "100%" }}
                 onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
                 onMouseEnter={() => handleMouseEnter(rowIndex, colIndex)}
                 onMouseUp={handleMouseUp}
@@ -543,30 +389,194 @@ const PathVisualizer = () => {
         ))}
       </div>
 
-      <div className="flex flex-wrap justify-center space-x-4 mt-2 text-sm">
-        <div className="flex items-center m-1">
-          <div className="w-4 h-4 bg-green-500 mr-1"></div>
-          <span>Start</span>
+      <div className="flex flex-col space-y-2 px-4 pb-3">
+        {/* Controls Panel */}
+        <div className="flex flex-wrap justify-between gap-2 mb-1">
+          <div className="flex flex-wrap gap-1">
+            <button
+              className={`px-3 py-1 rounded ${
+                selectedTool === "wall"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-800 text-gray-200 hover:bg-gray-700"
+              }`}
+              onClick={() => setSelectedTool("wall")}
+              disabled={isVisualizing}
+            >
+              Wall
+            </button>
+            <button
+              className={`px-3 py-1 rounded ${
+                selectedTool === "start"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-800 text-gray-200 hover:bg-gray-700"
+              }`}
+              onClick={() => setSelectedTool("start")}
+              disabled={isVisualizing}
+            >
+              Start
+            </button>
+            <button
+              className={`px-3 py-1 rounded ${
+                selectedTool === "goal"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-800 text-gray-200 hover:bg-gray-700"
+              }`}
+              onClick={() => setSelectedTool("goal")}
+              disabled={isVisualizing}
+            >
+              Goal
+            </button>
+            <button
+              className={`px-3 py-1 rounded ${
+                selectedTool === "eraser"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-800 text-gray-200 hover:bg-gray-700"
+              }`}
+              onClick={() => setSelectedTool("eraser")}
+              disabled={isVisualizing}
+            >
+              Eraser
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-1">
+            <select
+              className="px-3 py-1 bg-gray-800 text-gray-200 border border-gray-700 rounded"
+              value={selectedAlgorithm}
+              onChange={(e) =>
+                setSelectedAlgorithm(e.target.value as Algorithm)
+              }
+              disabled={isVisualizing && !algorithmStepsGenerated}
+            >
+              <option value="a-star">A* Algorithm</option>
+              <option value="dfs">DFS Algorithm</option>
+            </select>
+
+            <button
+              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-600"
+              onClick={visualize}
+              disabled={isVisualizing && !algorithmStepsGenerated}
+            >
+              {isVisualizing && !algorithmStepsGenerated
+                ? "Generating..."
+                : "Visualize!"}
+            </button>
+
+            <button
+              className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+              onClick={resetVisualization}
+            >
+              Reset
+            </button>
+
+            <button
+              className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600"
+              onClick={initializeGrid}
+            >
+              Clear All
+            </button>
+          </div>
         </div>
-        <div className="flex items-center m-1">
-          <div className="w-4 h-4 bg-red-500 mr-1"></div>
-          <span>Goal</span>
-        </div>
-        <div className="flex items-center m-1">
-          <div className="w-4 h-4 bg-gray-800 mr-1"></div>
-          <span>Wall</span>
-        </div>
-        <div className="flex items-center m-1">
-          <div className="w-4 h-4 bg-blue-300 mr-1"></div>
-          <span>Visited</span>
-        </div>
-        <div className="flex items-center m-1">
-          <div className="w-4 h-4 bg-purple-500 mr-1"></div>
-          <span>Current</span>
-        </div>
-        <div className="flex items-center m-1">
-          <div className="w-4 h-4 bg-yellow-400 mr-1"></div>
-          <span>Path</span>
+
+        {/* Animation Controls */}
+        {algorithmStepsGenerated && animationSteps.length > 0 && (
+          <div className="flex flex-wrap justify-center items-center gap-1 p-2 bg-gray-800 rounded">
+            <button
+              onClick={jumpToStart}
+              className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
+            >
+              ⏮️ Start
+            </button>
+            <button
+              onClick={() => stepBackward(5)}
+              className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
+            >
+              ⏪ -5
+            </button>
+            <button
+              onClick={() => stepBackward(1)}
+              className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
+            >
+              ◀️
+            </button>
+            {isPlaying ? (
+              <button
+                onClick={togglePlayPause}
+                className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                ⏸️
+              </button>
+            ) : (
+              <button
+                onClick={togglePlayPause}
+                className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                ▶️
+              </button>
+            )}
+            <button
+              onClick={() => stepForward(1)}
+              className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
+            >
+              ▶️
+            </button>
+            <button
+              onClick={() => stepForward(5)}
+              className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
+            >
+              ⏩ +5
+            </button>
+            <button
+              onClick={jumpToEnd}
+              className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
+            >
+              ⏭️ End
+            </button>
+
+            <div className="flex items-center ml-2">
+              <span className="mr-2 text-sm">Speed:</span>
+              <input
+                type="range"
+                min="100"
+                max="500"
+                value={600 - animationSpeed}
+                onChange={handleSpeedChange}
+                className="w-24 accent-blue-600"
+              />
+            </div>
+
+            <div className="ml-2 text-sm">
+              Step: {currentStepIndex + 1} / {animationSteps.length}
+            </div>
+          </div>
+        )}
+
+        {/* Legend */}
+        <div className="flex flex-wrap justify-center gap-3 mt-1 text-xs">
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-green-500 mr-1"></div>
+            <span>Start</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-red-500 mr-1"></div>
+            <span>Goal</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-gray-700 mr-1"></div>
+            <span>Wall</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-blue-700 mr-1"></div>
+            <span>Visited</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-purple-600 mr-1"></div>
+            <span>Current</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-yellow-500 mr-1"></div>
+            <span>Path</span>
+          </div>
         </div>
       </div>
     </div>

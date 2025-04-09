@@ -8,9 +8,9 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("sorting");
 
   return (
-    <div>
+    <div className="bg-gray-900 min-h-screen flex flex-col">
       <NavBar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <main className="p-6">
+      <main className="flex-1 overflow-hidden">
         {activeTab === "sorting" ? <SortingVisualizer /> : <PathVisualizer />}
       </main>
     </div>

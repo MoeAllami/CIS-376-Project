@@ -7,25 +7,29 @@ interface NavbarProps {
 
 const Navbar = ({ activeTab, setActiveTab }: NavbarProps) => {
   return (
-    <nav className="bg-black-800 text-white p-4">
-      <div className="container mx-auto flex justify-between items-center">
-        <h2 className="text-xl font-bold">Visualize</h2>
-        <div className="space-x-4">
+    <nav className="bg-gray-900 text-white border-b border-gray-800 shadow-md">
+      <div className="container mx-auto flex justify-between items-center p-3">
+        <h2 className="text-xl font-bold text-blue-400">AlgoCanvas</h2>
+        <div className="space-x-2">
           <button
-            className={`px-4 py-2 rounded ${
-              activeTab === "sorting" ? "bg-blue-600" : "bg-gray-700"
+            className={`px-4 py-2 rounded-md transition ${
+              activeTab === "sorting"
+                ? "bg-blue-700 text-white"
+                : "bg-gray-800 text-gray-300 hover:bg-gray-700"
             }`}
             onClick={() => setActiveTab("sorting")}
           >
-            Sorting Algorithms
+            Sorting
           </button>
           <button
-            className={`px-4 py-2 rounded ${
-              activeTab === "pathfinding" ? "bg-blue-600" : "bg-gray-700"
+            className={`px-4 py-2 rounded-md transition ${
+              activeTab === "pathfinding"
+                ? "bg-blue-700 text-white"
+                : "bg-gray-800 text-gray-300 hover:bg-gray-700"
             }`}
             onClick={() => setActiveTab("pathfinding")}
           >
-            Pathfinding Algorithms
+            Pathfinding
           </button>
         </div>
       </div>
