@@ -203,30 +203,7 @@ const PathVisualizer = () => {
     }
 
     // Clear existing start and goal positions
-    if (
-      startPosition.row >= 0 &&
-      startPosition.row < rows &&
-      startPosition.col >= 0 &&
-      startPosition.col < cols
-    ) {
-      newGrid[startPosition.row][startPosition.col] = "empty";
-    }
 
-    if (
-      goalPosition.row >= 0 &&
-      goalPosition.row < rows &&
-      goalPosition.col >= 0 &&
-      goalPosition.col < cols
-    ) {
-      newGrid[goalPosition.row][goalPosition.col] = "empty";
-    }
-
-    // Set new start and goal positions
-    newGrid[defaultStart.row][defaultStart.col] = "start";
-    newGrid[defaultGoal.row][defaultGoal.col] = "goal";
-
-    setStartPosition(defaultStart);
-    setGoalPosition(defaultGoal);
     setGrid(newGrid);
   };
 
