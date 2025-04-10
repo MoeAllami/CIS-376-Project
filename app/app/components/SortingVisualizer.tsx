@@ -104,11 +104,21 @@ const SortingVisualizer = () => {
       .attr("y", (d) => height - d * 2)
       .attr("width", actualBarWidth)
       .attr("height", (d) => d * 2)
-      // Use orange if highlighted, green if sorted, else steelblue
+
       .attr("fill", (_, i) => {
-        if (highlightIndices.includes(i)) return "orange";
         if (sorted.includes(i)) return "green";
-        return "steelblue";
+
+        // Only use red for pivot if quick sort is selected
+        if (
+          selectedAlgorithm === "quick" &&
+          highlightIndices.length === 2 &&
+          i === highlightIndices[1]
+        ) {
+          return "red"; // Pivot
+        }
+
+        if (highlightIndices.includes(i)) return "orange"; // Comparing
+        return "steelblue"; // Default
       });
 
     // Transition for text labels
@@ -165,99 +175,123 @@ const SortingVisualizer = () => {
 
   //  JSX Layout
   return (
-    <div className="text-center">
-      <h2 className="text-xl font-bold mb-4">Sorting Visualizer</h2>
+    <div className="w-screen h-screen overflow-hidden flex flex-col items-center bg-gray-900">
+      <h2 className="text-2xl font-bold text-white mt-4 mb-2">
+        Sorting Visualizer
+      </h2>
 
-      {/* Slider for adjusting speed */}
-      <div className="mb-4">
-        <label className="mr-2 font-semibold">Speed:</label>
-        <input
-          type="range"
-          min="50"
-          max="1000"
-          value={speed}
-          onChange={(e) => setSpeed(Number(e.target.value))}
-        />
-        <span className="ml-2">{speed} ms</span>
+      {/* Panel Container */}
+      <div className="bg-gray-800 rounded-xl shadow-lg p-4 w-11/12 max-w-4xl text-white space-y-4">
+        {/* Step Description */}
+        <div className="text-center">
+          <p className="text-lg font-medium">
+            Step {currentStep + 1}:{" "}
+            {descriptions[currentStep] || "Processing..."}
+          </p>
+          {selectedAlgorithm === "quick" && (
+            <p className="text-sm text-gray-400 italic">
+              (Quick Sort uses divide and conquer — highlighted subarray is the
+              current recursive partition.)
+            </p>
+          )}
+        </div>
+
+        {/* Controls */}
+        <div className="flex flex-wrap justify-center gap-4">
+          <div>
+            <label className="mr-2 font-semibold">Speed:</label>
+            <input
+              type="range"
+              min="50"
+              max="1000"
+              value={speed}
+              onChange={(e) => setSpeed(Number(e.target.value))}
+            />
+            <span className="ml-2">{speed} ms</span>
+          </div>
+          <div>
+            <label className="mr-2 font-semibold">Array Size:</label>
+            <input
+              type="range"
+              min="5"
+              max="25"
+              value={arraySize}
+              onChange={(e) => setArraySize(Number(e.target.value))}
+            />
+            <span className="ml-2">{arraySize}</span>
+          </div>
+          <div>
+            <label className="mr-2 font-semibold">Algorithm:</label>
+            <select
+              value={selectedAlgorithm}
+              onChange={(e) => setSelectedAlgorithm(e.target.value)}
+              className="p-1 rounded text-black"
+            >
+              <option value="bubble">Bubble Sort</option>
+              <option value="selection">Selection Sort</option>
+              <option value="insertion">Insertion Sort</option>
+              <option value="quick">Quick Sort</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Playback Buttons */}
+        <div className="flex flex-wrap justify-center gap-2">
+          <button
+            onClick={generateArray}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+          >
+            Generate New Array
+          </button>
+          <button
+            onClick={stepBack}
+            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+          >
+            ◀ Step Back
+          </button>
+          <button
+            onClick={isPlaying ? pause : play}
+            className={`${
+              isPlaying ? "bg-red-600" : "bg-green-600"
+            } hover:brightness-110 text-white px-4 py-2 rounded`}
+          >
+            {isPlaying ? "Pause" : "Play"}
+          </button>
+          <button
+            onClick={stepForward}
+            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+          >
+            Step Forward ▶
+          </button>
+        </div>
+
+        {/* Color Key */}
+        <div className="flex flex-wrap justify-center gap-6 text-sm">
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-[steelblue] mr-2 rounded"></div>
+            <span>Normal</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-orange-500 mr-2 rounded"></div>
+            <span>Comparing</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-red-500 mr-2 rounded"></div>
+            <span>Pivot (Quick Sort)</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-green-500 mr-2 rounded"></div>
+            <span>Sorted</span>
+          </div>
+        </div>
       </div>
 
-      {/* Slider for adjusting array size */}
-      <div className="mb-4">
-        <label className="mr-2 font-semibold">Array Size:</label>
-        <input
-          type="range"
-          min="5"
-          max="25"
-          value={arraySize}
-          onChange={(e) => setArraySize(Number(e.target.value))}
-        />
-        <span className="ml-2">{arraySize}</span>
-      </div>
-
-      {/* Dropdown to select sorting algorithm */}
-      <div className="mb-4">
-        <label className="mr-2 font-semibold">Algorithm:</label>
-        <select
-          value={selectedAlgorithm}
-          onChange={(e) => setSelectedAlgorithm(e.target.value)}
-          className="p-2 border rounded text-black"
-        >
-          <option value="bubble">Bubble Sort</option>
-          <option value="selection">Selection Sort</option>
-          <option value="insertion">Insertion Sort</option>
-          <option value="quick">Quick Sort</option>
-        </select>
-      </div>
-
-      {/* Control buttons */}
-      <div className="space-x-2 mb-4">
-        <button
-          onClick={generateArray}
-          className="bg-blue-500 text-white p-2 rounded"
-        >
-          Generate New Array
-        </button>
-        {/* Step Back button */}
-        <button
-          onClick={stepBack}
-          className="bg-gray-600 text-white p-2 rounded"
-        >
-          ◀ Step Back
-        </button>
-        {/* Play/Pause toggle button */}
-        <button
-          onClick={isPlaying ? pause : play}
-          className="bg-green-600 text-white p-2 rounded"
-        >
-          {isPlaying ? "Pause" : "Play"}
-        </button>
-        {/* Step Forward button */}
-        <button
-          onClick={stepForward}
-          className="bg-gray-600 text-white p-2 rounded"
-        >
-          Step Forward ▶
-        </button>
-      </div>
-
-      {/* SVG container for bars */}
+      {/*SVG Visualizer*/}
       <svg
         ref={svgRef}
-        className="w-full h-96 mx-auto"
+        className="w-full h-[40vh] mt-auto"
         preserveAspectRatio="none"
       />
-      {/* Step Description */}
-      <div className="mt-4">
-        <p className="text-lg font-medium">
-          Step {currentStep + 1}: {descriptions[currentStep] || "Processing..."}
-        </p>
-        {selectedAlgorithm === "quick" && (
-          <p className="text-sm text-gray-400 italic">
-            (Note: Quick Sort uses divide and conquer — highlighted subarray is
-            the current recursive partition.)
-          </p>
-        )}
-      </div>
     </div>
   );
 };
