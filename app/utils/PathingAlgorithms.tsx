@@ -6,7 +6,8 @@ export type CellType =
   | "goal"
   | "path"
   | "visited"
-  | "current";
+  | "current"
+  | "frontier";
 export type AnimationStep = CellType[][];
 
 export interface Position {
@@ -203,6 +204,29 @@ export const computeAStarSteps = (
   let pathFound = false;
   let finalPath: Position[] = [];
 
+  // Helper function to update the grid with frontier cells
+  const updateFrontier = () => {
+    const frontierGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+    // Mark all cells in openSet as frontier
+    for (const entry of openSet) {
+      const { row, col } = entry.position;
+      if (
+        frontierGrid[row][col] !== "start" &&
+        frontierGrid[row][col] !== "goal" &&
+        frontierGrid[row][col] !== "current" &&
+        frontierGrid[row][col] !== "visited"
+      ) {
+        frontierGrid[row][col] = "frontier";
+      }
+    }
+
+    steps.push(frontierGrid);
+  };
+
+  // Mark initial frontier
+  updateFrontier();
+
   while (openSet.length > 0) {
     iterations++;
     if (iterations > maxIterations) {
@@ -306,6 +330,9 @@ export const computeAStarSteps = (
         }
       }
     }
+
+    // Update frontier visualization after processing neighbors
+    updateFrontier();
   }
 
   // If path was found, visualize it directly
@@ -349,6 +376,29 @@ export const computeDFSSteps = (
   const maxIterations = rows * cols * 2; // Safeguard against infinite loops
   let pathFound = false;
   let finalPath: Position[] = [];
+
+  // Helper function to update the grid with frontier cells
+  const updateFrontier = () => {
+    const frontierGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+    // Mark all cells in stack as frontier
+    for (const [pos, _] of stack) {
+      const { row, col } = pos;
+      if (
+        frontierGrid[row][col] !== "start" &&
+        frontierGrid[row][col] !== "goal" &&
+        frontierGrid[row][col] !== "current" &&
+        frontierGrid[row][col] !== "visited"
+      ) {
+        frontierGrid[row][col] = "frontier";
+      }
+    }
+
+    steps.push(frontierGrid);
+  };
+
+  // Mark initial frontier
+  updateFrontier();
 
   // Start DFS: keep going until stack is empty
   while (stack.length > 0) {
@@ -411,6 +461,9 @@ export const computeDFSSteps = (
         stack.push([neighbor, [...currentPath, neighbor]]);
       }
     }
+
+    // Update frontier visualization after adding new cells to the stack
+    updateFrontier();
   }
 
   // If path was found, visualize it directly
@@ -434,7 +487,7 @@ export const computeDFSSteps = (
   return { steps, pathFound };
 };
 
-// Breadth-First Search (BFS) Visualization Logic
+// BFS Algorithm
 export const computeBFSSteps = (
   grid: CellType[][],
   startPosition: Position,
@@ -442,18 +495,16 @@ export const computeBFSSteps = (
   rows: number,
   cols: number
 ): { steps: CellType[][][]; pathFound: boolean } => {
-  // Create a copy of the grid for our visualization
-  const gridCopy: CellType[][] = grid.map((row) => [...row]);
-  const steps: CellType[][][] = [JSON.parse(JSON.stringify(gridCopy))];
+  const steps: AnimationStep[] = [];
+  const initialGrid = JSON.parse(JSON.stringify(grid));
+  steps.push(JSON.parse(JSON.stringify(initialGrid))); // Save initial state
 
   // Queue for BFS, starting with the start position
   const queue: [Position, Position[]][] = [[startPosition, [startPosition]]];
 
   // Keep track of visited cells
-  const visited: boolean[][] = Array(rows)
-    .fill(0)
-    .map(() => Array(cols).fill(false));
-  visited[startPosition.row][startPosition.col] = true;
+  const visited: Set<string> = new Set();
+  visited.add(`${startPosition.row},${startPosition.col}`);
 
   // Directions to explore (up, right, down, left)
   const directions = [
@@ -466,16 +517,52 @@ export const computeBFSSteps = (
   let pathFound = false;
   let finalPath: Position[] = [];
 
+  // Helper function to update the grid with frontier cells
+  const updateFrontier = () => {
+    const frontierGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+    // Mark all cells in queue as frontier
+    for (const [pos, _] of queue) {
+      const { row, col } = pos;
+      if (
+        frontierGrid[row][col] !== "start" &&
+        frontierGrid[row][col] !== "goal" &&
+        frontierGrid[row][col] !== "current" &&
+        frontierGrid[row][col] !== "visited"
+      ) {
+        frontierGrid[row][col] = "frontier";
+      }
+    }
+
+    steps.push(frontierGrid);
+  };
+
+  // Mark initial frontier
+  updateFrontier();
+
   while (queue.length > 0) {
     const [current, path] = queue.shift()!;
+    const currentKey = `${current.row},${current.col}`;
 
-    // Mark current cell as being processed
+    // Skip if already visited (needed since we might enqueue the same position multiple times)
     if (
-      gridCopy[current.row][current.col] !== "start" &&
-      gridCopy[current.row][current.col] !== "goal"
+      visited.has(currentKey) &&
+      (steps[steps.length - 1][current.row][current.col] === "visited" ||
+        steps[steps.length - 1][current.row][current.col] === "current")
     ) {
-      gridCopy[current.row][current.col] = "current";
-      steps.push(JSON.parse(JSON.stringify(gridCopy)));
+      continue;
+    }
+
+    // Create new state for this step - FIRST mark as CURRENT
+    const currentGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+    // Mark as current (except start/goal)
+    if (
+      currentGrid[current.row][current.col] !== "start" &&
+      currentGrid[current.row][current.col] !== "goal"
+    ) {
+      currentGrid[current.row][current.col] = "current";
+      steps.push(currentGrid);
     }
 
     // Check if we've reached the goal
@@ -485,19 +572,26 @@ export const computeBFSSteps = (
       break;
     }
 
-    // Mark as visited after processing
+    // Mark as visited
+    visited.add(currentKey);
+
+    // Create new state for this step - THEN mark as VISITED
+    const visitedGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+    // Mark as visited (except start/goal)
     if (
-      gridCopy[current.row][current.col] !== "start" &&
-      gridCopy[current.row][current.col] !== "goal"
+      visitedGrid[current.row][current.col] !== "start" &&
+      visitedGrid[current.row][current.col] !== "goal"
     ) {
-      gridCopy[current.row][current.col] = "visited";
-      steps.push(JSON.parse(JSON.stringify(gridCopy)));
+      visitedGrid[current.row][current.col] = "visited";
+      steps.push(visitedGrid);
     }
 
     // Explore all four directions
     for (const dir of directions) {
       const nextRow = current.row + dir.row;
       const nextCol = current.col + dir.col;
+      const nextKey = `${nextRow},${nextCol}`;
 
       // Check if the new position is valid
       if (
@@ -505,31 +599,42 @@ export const computeBFSSteps = (
         nextRow < rows &&
         nextCol >= 0 &&
         nextCol < cols &&
-        !visited[nextRow][nextCol] &&
+        !visited.has(nextKey) &&
         grid[nextRow][nextCol] !== "wall"
       ) {
-        visited[nextRow][nextCol] = true;
         const nextPos = { row: nextRow, col: nextCol };
         queue.push([nextPos, [...path, nextPos]]);
+        // Mark as visited to avoid re-enqueueing
+        visited.add(nextKey);
       }
     }
+
+    // Update frontier visualization after adding new cells to the queue
+    updateFrontier();
   }
 
   // If a path was found, visualize it
-  if (pathFound) {
+  if (pathFound && finalPath.length > 0) {
+    // Skip start and end positions
     for (let i = 1; i < finalPath.length - 1; i++) {
       const { row, col } = finalPath[i];
-      if (gridCopy[row][col] !== "start" && gridCopy[row][col] !== "goal") {
-        gridCopy[row][col] = "path";
-        steps.push(JSON.parse(JSON.stringify(gridCopy)));
+
+      // Create a new grid state for this step
+      const pathGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+      // Mark as path if not start or goal
+      if (pathGrid[row][col] !== "start" && pathGrid[row][col] !== "goal") {
+        pathGrid[row][col] = "path";
       }
+
+      steps.push(pathGrid);
     }
   }
 
   return { steps, pathFound };
 };
 
-// Greedy Best-First Search Visualization Logic
+// GBFS Algorithm
 export const computeGreedyBestFirstSteps = (
   grid: CellType[][],
   startPosition: Position,
@@ -537,9 +642,9 @@ export const computeGreedyBestFirstSteps = (
   rows: number,
   cols: number
 ): { steps: CellType[][][]; pathFound: boolean } => {
-  // Create a copy of the grid for our visualization
-  const gridCopy: CellType[][] = grid.map((row) => [...row]);
-  const steps: CellType[][][] = [JSON.parse(JSON.stringify(gridCopy))];
+  const steps: AnimationStep[] = [];
+  const initialGrid = JSON.parse(JSON.stringify(grid));
+  steps.push(JSON.parse(JSON.stringify(initialGrid))); // Save initial state
 
   // Priority queue using array, sorted by heuristic (estimated distance to goal)
   const openSet: [Position, number, Position[]][] = [
@@ -547,9 +652,7 @@ export const computeGreedyBestFirstSteps = (
   ];
 
   // Keep track of visited cells
-  const visited: boolean[][] = Array(rows)
-    .fill(0)
-    .map(() => Array(cols).fill(false));
+  const visited: Set<string> = new Set();
 
   // Directions to explore (up, right, down, left)
   const directions = [
@@ -570,23 +673,49 @@ export const computeGreedyBestFirstSteps = (
     );
   };
 
+  // Helper function to update the grid with frontier cells
+  const updateFrontier = () => {
+    const frontierGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+    // Mark all cells in openSet as frontier
+    for (const [pos, _, __] of openSet) {
+      const { row, col } = pos;
+      if (
+        frontierGrid[row][col] !== "start" &&
+        frontierGrid[row][col] !== "goal" &&
+        frontierGrid[row][col] !== "current" &&
+        frontierGrid[row][col] !== "visited"
+      ) {
+        frontierGrid[row][col] = "frontier";
+      }
+    }
+
+    steps.push(frontierGrid);
+  };
+
+  // Mark initial frontier
+  updateFrontier();
+
   while (openSet.length > 0) {
     // Sort by heuristic value (ascending)
     openSet.sort((a, b) => a[1] - b[1]);
 
     const [current, _, path] = openSet.shift()!;
+    const currentKey = `${current.row},${current.col}`;
 
     // Skip if already visited
-    if (visited[current.row][current.col]) continue;
-    visited[current.row][current.col] = true;
+    if (visited.has(currentKey)) continue;
 
-    // Mark current cell as being processed
+    // Create new state for this step - FIRST mark as CURRENT
+    const currentGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+    // Mark as current (except start/goal)
     if (
-      gridCopy[current.row][current.col] !== "start" &&
-      gridCopy[current.row][current.col] !== "goal"
+      currentGrid[current.row][current.col] !== "start" &&
+      currentGrid[current.row][current.col] !== "goal"
     ) {
-      gridCopy[current.row][current.col] = "current";
-      steps.push(JSON.parse(JSON.stringify(gridCopy)));
+      currentGrid[current.row][current.col] = "current";
+      steps.push(currentGrid);
     }
 
     // Check if we've reached the goal
@@ -596,19 +725,26 @@ export const computeGreedyBestFirstSteps = (
       break;
     }
 
-    // Mark as visited after processing
+    // Mark as visited
+    visited.add(currentKey);
+
+    // Create new state for this step - THEN mark as VISITED
+    const visitedGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+    // Mark as visited (except start/goal)
     if (
-      gridCopy[current.row][current.col] !== "start" &&
-      gridCopy[current.row][current.col] !== "goal"
+      visitedGrid[current.row][current.col] !== "start" &&
+      visitedGrid[current.row][current.col] !== "goal"
     ) {
-      gridCopy[current.row][current.col] = "visited";
-      steps.push(JSON.parse(JSON.stringify(gridCopy)));
+      visitedGrid[current.row][current.col] = "visited";
+      steps.push(visitedGrid);
     }
 
     // Explore all four directions
     for (const dir of directions) {
       const nextRow = current.row + dir.row;
       const nextCol = current.col + dir.col;
+      const nextKey = `${nextRow},${nextCol}`;
 
       // Check if the new position is valid
       if (
@@ -616,7 +752,7 @@ export const computeGreedyBestFirstSteps = (
         nextRow < rows &&
         nextCol >= 0 &&
         nextCol < cols &&
-        !visited[nextRow][nextCol] &&
+        !visited.has(nextKey) &&
         grid[nextRow][nextCol] !== "wall"
       ) {
         const nextPos = { row: nextRow, col: nextCol };
@@ -625,16 +761,26 @@ export const computeGreedyBestFirstSteps = (
         openSet.push([nextPos, h, [...path, nextPos]]);
       }
     }
+
+    // Update frontier visualization after adding new cells to the open set
+    updateFrontier();
   }
 
   // If a path was found, visualize it
-  if (pathFound) {
+  if (pathFound && finalPath.length > 0) {
+    // Skip start and end positions
     for (let i = 1; i < finalPath.length - 1; i++) {
       const { row, col } = finalPath[i];
-      if (gridCopy[row][col] !== "start" && gridCopy[row][col] !== "goal") {
-        gridCopy[row][col] = "path";
-        steps.push(JSON.parse(JSON.stringify(gridCopy)));
+
+      // Create a new grid state for this step
+      const pathGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+      // Mark as path if not start or goal
+      if (pathGrid[row][col] !== "start" && pathGrid[row][col] !== "goal") {
+        pathGrid[row][col] = "path";
       }
+
+      steps.push(pathGrid);
     }
   }
 

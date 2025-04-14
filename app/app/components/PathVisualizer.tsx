@@ -197,7 +197,8 @@ const PathVisualizer = () => {
         if (
           newGrid[row][col] === "path" ||
           newGrid[row][col] === "visited" ||
-          newGrid[row][col] === "current"
+          newGrid[row][col] === "current" ||
+          newGrid[row][col] === "frontier"
         ) {
           newGrid[row][col] = "empty";
         }
@@ -352,6 +353,8 @@ const PathVisualizer = () => {
         return "bg-blue-700";
       case "current":
         return "bg-purple-600";
+      case "frontier":
+        return "bg-red-400";
       default:
         return "bg-gray-900";
     }
@@ -479,6 +482,10 @@ const PathVisualizer = () => {
           <div className="flex items-center">
             <div className="w-3 h-3 bg-yellow-500 mr-1"></div>
             <span>Path</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-red-400 mr-1"></div>
+            <span>Frontier</span>
           </div>
         </div>
       </div>
