@@ -1,13 +1,14 @@
+// Interface describing the structure of a sorting result used for visualization
 export interface SortResult {
-  steps: number[][];
-  highlights: number[][];
-  descriptions: string[];
-  sortedIndices: number[][];
+  steps: number[][];           // Snapshots of the array at each step
+  highlights: number[][];      // Index pairs currently being compared or swapped
+  descriptions: string[];      // Step-by-step explanation for each action
+  sortedIndices: number[][];   // Tracks which indices are sorted at each step
 }
 
-// Bubble Sort
+// Bubble Sort Visualization Logic
 export const computeBubbleSortSteps = (inputArray: number[]): SortResult => {
-  const arr = [...inputArray];
+  const arr = [...inputArray]; // Make a copy of the input
   const steps: number[][] = [[...arr]];
   const highlights: number[][] = [[]];
   const descriptions: string[] = ["Initial array"];
@@ -21,14 +22,16 @@ export const computeBubbleSortSteps = (inputArray: number[]): SortResult => {
       } else {
         descriptions.push(`Compared ${arr[j]} and ${arr[j + 1]} — no swap`);
       }
+
       steps.push([...arr]);
       highlights.push([j, j + 1]);
       sortedIndices.push(
-        Array.from({ length: i }, (_, k) => arr.length - k - 1)
+        Array.from({ length: i }, (_, k) => arr.length - k - 1) // Elements at the end are already sorted
       );
     }
   }
 
+  // Final state
   steps.push([...arr]);
   highlights.push([]);
   descriptions.push("Array fully sorted");
@@ -37,7 +40,7 @@ export const computeBubbleSortSteps = (inputArray: number[]): SortResult => {
   return { steps, highlights, descriptions, sortedIndices };
 };
 
-// Selection Sort
+// Selection Sort Visualization Logic
 export const computeSelectionSortSteps = (inputArray: number[]): SortResult => {
   const arr = [...inputArray];
   const steps: number[][] = [[...arr]];
@@ -47,15 +50,18 @@ export const computeSelectionSortSteps = (inputArray: number[]): SortResult => {
 
   for (let i = 0; i < arr.length - 1; i++) {
     let minIndex = i;
+
     for (let j = i + 1; j < arr.length; j++) {
       highlights.push([i, j]);
       steps.push([...arr]);
       descriptions.push(`Compared index ${i} and ${j}`);
-      sortedIndices.push(Array.from({ length: i }, (_, k) => k));
+      sortedIndices.push(Array.from({ length: i }, (_, k) => k)); // Everything before i is sorted
+
       if (arr[j] < arr[minIndex]) {
         minIndex = j;
       }
     }
+
     if (minIndex !== i) {
       [arr[i], arr[minIndex]] = [arr[minIndex], arr[i]];
       steps.push([...arr]);
@@ -73,7 +79,7 @@ export const computeSelectionSortSteps = (inputArray: number[]): SortResult => {
   return { steps, highlights, descriptions, sortedIndices };
 };
 
-// Insertion Sort
+// Insertion Sort Visualization Logic
 export const computeInsertionSortSteps = (inputArray: number[]): SortResult => {
   const arr = [...inputArray];
   const steps: number[][] = [[...arr]];
@@ -84,15 +90,20 @@ export const computeInsertionSortSteps = (inputArray: number[]): SortResult => {
   for (let i = 1; i < arr.length; i++) {
     let key = arr[i];
     let j = i - 1;
+
     descriptions.push(`Picked element ${key} for insertion`);
+
+    // Shift elements to the right until correct position is found
     while (j >= 0 && arr[j] > key) {
       arr[j + 1] = arr[j];
       steps.push([...arr]);
       highlights.push([j, j + 1]);
       descriptions.push(`Shifted ${arr[j]} right to index ${j + 1}`);
       sortedIndices.push(Array.from({ length: i }, (_, k) => k));
-      j = j - 1;
+      j--;
     }
+
+    // Insert the key
     arr[j + 1] = key;
     steps.push([...arr]);
     highlights.push([j + 1]);
@@ -108,7 +119,8 @@ export const computeInsertionSortSteps = (inputArray: number[]): SortResult => {
   return { steps, highlights, descriptions, sortedIndices };
 };
 
-// Quick Sort
+// Quick Sort Visualization Logic
+// Partition helper: moves pivot to correct location and partitions the array
 const partition = (
   arr: number[],
   low: number,
@@ -127,6 +139,7 @@ const partition = (
     steps.push([...arr]);
     descriptions.push(`Comparing ${arr[j]} with pivot ${pivot}`);
     sortedIndices.push([]);
+
     if (arr[j] < pivot) {
       i++;
       [arr[i], arr[j]] = [arr[j], arr[i]];
@@ -146,6 +159,7 @@ const partition = (
   return i + 1;
 };
 
+// Recursive quick sort helper
 const quickSortRecursive = (
   arr: number[],
   low: number,
@@ -156,36 +170,13 @@ const quickSortRecursive = (
   sortedIndices: number[][]
 ) => {
   if (low < high) {
-    const pi = partition(
-      arr,
-      low,
-      high,
-      steps,
-      highlights,
-      descriptions,
-      sortedIndices
-    );
-    quickSortRecursive(
-      arr,
-      low,
-      pi - 1,
-      steps,
-      highlights,
-      descriptions,
-      sortedIndices
-    );
-    quickSortRecursive(
-      arr,
-      pi + 1,
-      high,
-      steps,
-      highlights,
-      descriptions,
-      sortedIndices
-    );
+    const pi = partition(arr, low, high, steps, highlights, descriptions, sortedIndices);
+    quickSortRecursive(arr, low, pi - 1, steps, highlights, descriptions, sortedIndices);
+    quickSortRecursive(arr, pi + 1, high, steps, highlights, descriptions, sortedIndices);
   }
 };
 
+// Public quick sort function
 export const computeQuickSortSteps = (inputArray: number[]): SortResult => {
   const arr = [...inputArray];
   const steps: number[][] = [[...arr]];
@@ -193,15 +184,7 @@ export const computeQuickSortSteps = (inputArray: number[]): SortResult => {
   const descriptions: string[] = ["Initial array"];
   const sortedIndices: number[][] = [[]];
 
-  quickSortRecursive(
-    arr,
-    0,
-    arr.length - 1,
-    steps,
-    highlights,
-    descriptions,
-    sortedIndices
-  );
+  quickSortRecursive(arr, 0, arr.length - 1, steps, highlights, descriptions, sortedIndices);
 
   steps.push([...arr]);
   highlights.push([]);
