@@ -12,11 +12,10 @@ export default function LayoutWrapper({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const showNav = pathname !== '/'; // Hide NavBar on homepage
 
   return (
     <>
-      {showNav && <NavBar />}
+      {<NavBar />}
       <main>{children}</main>
     </>
   );

@@ -24,14 +24,14 @@ export default function SignInPage() {
         <input
           type="email"
           placeholder="Email"
-          className="border w-full p-2"
+          className="border w-full p-2 text-black"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
         <input
           type="password"
           placeholder="Password"
-          className="border w-full p-2"
+          className="border w-full p-2 text-black"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
