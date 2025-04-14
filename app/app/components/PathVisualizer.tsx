@@ -4,9 +4,11 @@ import {
   Position,
   computeAStarSteps,
   computeDFSSteps,
+  computeBFSSteps,
+  computeGreedyBestFirstSteps,
 } from "../../utils/PathingAlgorithms";
 
-type Algorithm = "a-star" | "dfs" | "bfs" | "dijkstra" | "greedy";
+type Algorithm = "a-star" | "dfs" | "bfs" | "greedy";
 type Tool = "wall" | "start" | "goal" | "eraser";
 type AnimationStep = CellType[][];
 
@@ -195,7 +197,8 @@ const PathVisualizer = () => {
         if (
           newGrid[row][col] === "path" ||
           newGrid[row][col] === "visited" ||
-          newGrid[row][col] === "current"
+          newGrid[row][col] === "current" ||
+          newGrid[row][col] === "frontier"
         ) {
           newGrid[row][col] = "empty";
         }
@@ -246,6 +249,18 @@ const PathVisualizer = () => {
         break;
       case "dfs":
         result = computeDFSSteps(grid, startPosition, goalPosition, rows, cols);
+        break;
+      case "bfs":
+        result = computeBFSSteps(grid, startPosition, goalPosition, rows, cols);
+        break;
+      case "greedy":
+        result = computeGreedyBestFirstSteps(
+          grid,
+          startPosition,
+          goalPosition,
+          rows,
+          cols
+        );
         break;
       default:
         result = computeAStarSteps(
@@ -338,6 +353,8 @@ const PathVisualizer = () => {
         return "bg-blue-700";
       case "current":
         return "bg-purple-600";
+      case "frontier":
+        return "bg-red-400";
       default:
         return "bg-gray-900";
     }
@@ -349,25 +366,8 @@ const PathVisualizer = () => {
         Pathfinding Visualizer
       </h1>
 
-      <div className="grid grid-cols-1 flex-grow overflow-hidden border border-gray-700 mx-4 mb-4">
-        {grid.map((row, rowIndex) => (
-          <div key={rowIndex} className="flex flex-grow">
-            {row.map((cell, colIndex) => (
-              <div
-                key={`${rowIndex}-${colIndex}`}
-                className={`border border-gray-800 ${getCellColor(cell)}`}
-                style={{ width: "100%", height: "100%" }}
-                onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
-                onMouseEnter={() => handleMouseEnter(rowIndex, colIndex)}
-                onMouseUp={handleMouseUp}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-
-      <div className="flex flex-col space-y-2 px-4 pb-3">
-        {/* Controls Panel */}
+      {/* Controls Panel - Moved to top */}
+      <div className="flex flex-col space-y-2 px-4 mb-3">
         <div className="flex flex-wrap justify-between gap-2 mb-1">
           <div className="flex flex-wrap gap-1">
             <button
@@ -426,7 +426,9 @@ const PathVisualizer = () => {
               disabled={isVisualizing && !algorithmStepsGenerated}
             >
               <option value="a-star">A* Algorithm</option>
-              <option value="dfs">DFS Algorithm</option>
+              <option value="greedy">Greedy Best-First Search</option>
+              <option value="bfs">Breadth-First Search</option>
+              <option value="dfs">Depth-First Search</option>
             </select>
 
             <button
@@ -455,80 +457,7 @@ const PathVisualizer = () => {
           </div>
         </div>
 
-        {/* Animation Controls */}
-        {algorithmStepsGenerated && animationSteps.length > 0 && (
-          <div className="flex flex-wrap justify-center items-center gap-1 p-2 bg-gray-800 rounded">
-            <button
-              onClick={jumpToStart}
-              className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
-            >
-              ⏮️ Start
-            </button>
-            <button
-              onClick={() => stepBackward(5)}
-              className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
-            >
-              ⏪ -5
-            </button>
-            <button
-              onClick={() => stepBackward(1)}
-              className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
-            >
-              ◀️
-            </button>
-            {isPlaying ? (
-              <button
-                onClick={togglePlayPause}
-                className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-              >
-                ⏸️
-              </button>
-            ) : (
-              <button
-                onClick={togglePlayPause}
-                className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                ▶️
-              </button>
-            )}
-            <button
-              onClick={() => stepForward(1)}
-              className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
-            >
-              ▶️
-            </button>
-            <button
-              onClick={() => stepForward(5)}
-              className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
-            >
-              ⏩ +5
-            </button>
-            <button
-              onClick={jumpToEnd}
-              className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
-            >
-              ⏭️ End
-            </button>
-
-            <div className="flex items-center ml-2">
-              <span className="mr-2 text-sm">Speed:</span>
-              <input
-                type="range"
-                min="100"
-                max="500"
-                value={600 - animationSpeed}
-                onChange={handleSpeedChange}
-                className="w-24 accent-blue-600"
-              />
-            </div>
-
-            <div className="ml-2 text-sm">
-              Step: {currentStepIndex + 1} / {animationSteps.length}
-            </div>
-          </div>
-        )}
-
-        {/* Legend */}
+        {/* Legend - Moved to top */}
         <div className="flex flex-wrap justify-center gap-3 mt-1 text-xs">
           <div className="flex items-center">
             <div className="w-3 h-3 bg-green-500 mr-1"></div>
@@ -554,7 +483,102 @@ const PathVisualizer = () => {
             <div className="w-3 h-3 bg-yellow-500 mr-1"></div>
             <span>Path</span>
           </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-red-400 mr-1"></div>
+            <span>Frontier</span>
+          </div>
         </div>
+      </div>
+
+      {/* Animation Controls - Keep with the grid */}
+      {algorithmStepsGenerated && animationSteps.length > 0 && (
+        <div className="flex flex-wrap justify-center items-center gap-1 p-2 mx-4 mb-2 bg-gray-800 rounded">
+          <button
+            onClick={jumpToStart}
+            className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
+          >
+            ⏮️ Start
+          </button>
+          <button
+            onClick={() => stepBackward(5)}
+            className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
+          >
+            ⏪ -5
+          </button>
+          <button
+            onClick={() => stepBackward(1)}
+            className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
+          >
+            ◀️
+          </button>
+          {isPlaying ? (
+            <button
+              onClick={togglePlayPause}
+              className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              ⏸️
+            </button>
+          ) : (
+            <button
+              onClick={togglePlayPause}
+              className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+            >
+              ▶️
+            </button>
+          )}
+          <button
+            onClick={() => stepForward(1)}
+            className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
+          >
+            ▶️
+          </button>
+          <button
+            onClick={() => stepForward(5)}
+            className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
+          >
+            ⏩ +5
+          </button>
+          <button
+            onClick={jumpToEnd}
+            className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800"
+          >
+            ⏭️ End
+          </button>
+
+          <div className="flex items-center ml-2">
+            <span className="mr-2 text-sm">Speed:</span>
+            <input
+              type="range"
+              min="100"
+              max="500"
+              value={600 - animationSpeed}
+              onChange={handleSpeedChange}
+              className="w-24 accent-blue-600"
+            />
+          </div>
+
+          <div className="ml-2 text-sm">
+            Step: {currentStepIndex + 1} / {animationSteps.length}
+          </div>
+        </div>
+      )}
+
+      {/* Grid Visualization - Now below the controls */}
+      <div className="grid grid-cols-1 flex-grow overflow-hidden border border-gray-700 mx-4 mb-4">
+        {grid.map((row, rowIndex) => (
+          <div key={rowIndex} className="flex flex-grow">
+            {row.map((cell, colIndex) => (
+              <div
+                key={`${rowIndex}-${colIndex}`}
+                className={`border border-gray-800 ${getCellColor(cell)}`}
+                style={{ width: "100%", height: "100%" }}
+                onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
+                onMouseEnter={() => handleMouseEnter(rowIndex, colIndex)}
+                onMouseUp={handleMouseUp}
+              />
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   );
