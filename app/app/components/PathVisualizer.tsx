@@ -1,8 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 
-type CellType = "empty" | "wall" | "start" | "goal" | "path" | "visited";
+type CellType =
+  | "empty"
+  | "wall"
+  | "start"
+  | "goal"
+  | "path"
+  | "visited"
+  | "current";
 type Algorithm = "a-star" | "dfs";
 type Tool = "wall" | "start" | "goal" | "eraser";
+type AnimationStep = CellType[][];
 
 interface Position {
   row: number;
@@ -26,9 +34,16 @@ const PathVisualizer = () => {
     useState<Algorithm>("a-star");
   const [isVisualizing, setIsVisualizing] = useState(false);
   const [isMousePressed, setIsMousePressed] = useState(false);
-  // Add refs to track animation state
-  const animationInProgress = useRef(false);
-  const animationTimeouts = useRef<number[]>([]);
+
+  // Animation states
+  const [animationSteps, setAnimationSteps] = useState<AnimationStep[]>([]);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [animationSpeed, setAnimationSpeed] = useState(100); // milliseconds
+  const [algorithmStepsGenerated, setAlgorithmStepsGenerated] = useState(false);
+
+  // Animation refs
+  const playbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Default positions
   const defaultStart = { row: 5, col: 5 };
@@ -39,11 +54,38 @@ const PathVisualizer = () => {
     initializeGrid();
   }, []);
 
+  // Animation playback effect
+  useEffect(() => {
+    if (!isPlaying || currentStepIndex >= animationSteps.length - 1) {
+      if (
+        currentStepIndex >= animationSteps.length - 1 &&
+        animationSteps.length > 0
+      ) {
+        setIsPlaying(false);
+      }
+      return;
+    }
+
+    playbackTimeoutRef.current = setTimeout(() => {
+      setCurrentStepIndex((prev) => prev + 1);
+      setGrid([...animationSteps[currentStepIndex + 1]]);
+    }, animationSpeed);
+
+    return () => {
+      if (playbackTimeoutRef.current) {
+        clearTimeout(playbackTimeoutRef.current);
+      }
+    };
+  }, [isPlaying, currentStepIndex, animationSteps, animationSpeed]);
+
   // Initialize grid with empty cells
   const initializeGrid = () => {
-    // Stop any running animations first
-    stopAnimations();
+    // Clear any running animations
+    stopAnimation();
     setIsVisualizing(false);
+    setAlgorithmStepsGenerated(false);
+    setAnimationSteps([]);
+    setCurrentStepIndex(0);
 
     const newGrid: CellType[][] = [];
     for (let row = 0; row < rows; row++) {
@@ -63,14 +105,13 @@ const PathVisualizer = () => {
     setGoalPosition(defaultGoal);
   };
 
-  // Function to stop all animations
-  const stopAnimations = () => {
-    animationInProgress.current = false;
-    // Clear all timeouts
-    animationTimeouts.current.forEach((timeoutId) =>
-      window.clearTimeout(timeoutId)
-    );
-    animationTimeouts.current = [];
+  // Stop the animation
+  const stopAnimation = () => {
+    setIsPlaying(false);
+    if (playbackTimeoutRef.current) {
+      clearTimeout(playbackTimeoutRef.current);
+      playbackTimeoutRef.current = null;
+    }
   };
 
   // update cells when mouse is pressed
@@ -135,13 +176,22 @@ const PathVisualizer = () => {
     }
 
     setGrid(newGrid);
+
+    // Reset animation state when grid changes
+    if (algorithmStepsGenerated) {
+      setAlgorithmStepsGenerated(false);
+      setAnimationSteps([]);
+      setCurrentStepIndex(0);
+    }
   };
 
-  // Modified resetVisualization function
+  // Reset visualization
   const resetVisualization = () => {
-    // Stop any ongoing animations
-    stopAnimations();
+    stopAnimation();
     setIsVisualizing(false);
+    setAlgorithmStepsGenerated(false);
+    setAnimationSteps([]);
+    setCurrentStepIndex(0);
 
     // Reset to default positions and clear paths
     const newGrid = [...grid];
@@ -149,7 +199,11 @@ const PathVisualizer = () => {
     // First clear all visited and path cells
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        if (newGrid[row][col] === "path" || newGrid[row][col] === "visited") {
+        if (
+          newGrid[row][col] === "path" ||
+          newGrid[row][col] === "visited" ||
+          newGrid[row][col] === "current"
+        ) {
           newGrid[row][col] = "empty";
         }
       }
@@ -183,16 +237,22 @@ const PathVisualizer = () => {
     setGrid(newGrid);
   };
 
-  // Visualize the selected algorithm
+  // Start visualization process
   const visualize = async () => {
-    // Don't start a new visualization if one is already in progress
     if (isVisualizing) return;
 
-    // Clear previous paths/visited cells but keep walls
+    // Stop any running animations first
+    stopAnimation();
+
+    // Clear previous paths/visited cells
     const newGrid = [...grid];
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        if (newGrid[row][col] === "path" || newGrid[row][col] === "visited") {
+        if (
+          newGrid[row][col] === "path" ||
+          newGrid[row][col] === "visited" ||
+          newGrid[row][col] === "current"
+        ) {
           newGrid[row][col] = "empty";
         }
       }
@@ -200,40 +260,40 @@ const PathVisualizer = () => {
     setGrid(newGrid);
 
     setIsVisualizing(true);
-    animationInProgress.current = true;
 
+    // Generate all animation steps
+    let steps: AnimationStep[] = [];
     let pathFound = false;
+
     if (selectedAlgorithm === "a-star") {
-      pathFound = await visualizeAStar();
+      [steps, pathFound] = await generateAStarSteps();
     } else {
-      pathFound = await visualizeDFS();
+      [steps, pathFound] = await generateDFSSteps();
     }
 
-    if (animationInProgress.current) {
-      setIsVisualizing(false);
-      // Optionally show a message if no path was found
-      if (!pathFound) {
+    setAnimationSteps(steps);
+    setAlgorithmStepsGenerated(true);
+
+    if (steps.length > 0) {
+      setCurrentStepIndex(0);
+      setGrid([...steps[0]]);
+      setIsPlaying(true);
+    }
+
+    if (!pathFound && steps.length > 0) {
+      // We still show the animation even if no path was found
+      setTimeout(() => {
         alert("No path found!");
-      }
+      }, 100);
     }
   };
 
-  // Modified delay function to track timeouts
-  const delay = (ms: number) => {
-    return new Promise<void>((resolve) => {
-      const timeoutId = window.setTimeout(() => {
-        resolve();
-      }, ms);
-      animationTimeouts.current.push(timeoutId);
-    });
-  };
+  // Generate all steps for A* algorithm without animation
+  const generateAStarSteps = async (): Promise<[AnimationStep[], boolean]> => {
+    const steps: AnimationStep[] = [];
+    const initialGrid = [...grid];
+    steps.push(JSON.parse(JSON.stringify(initialGrid))); // Save initial state
 
-  // A* algorithm implementation
-  const visualizeAStar = async () => {
-    const newGrid = [...grid];
-
-    // Using a priority queue would be ideal, but we'll simulate one with an array
-    // and proper sorting
     const openSet: { position: Position; fScore: number }[] = [
       {
         position: startPosition,
@@ -250,12 +310,13 @@ const PathVisualizer = () => {
 
     let iterations = 0;
     const maxIterations = rows * cols * 2; // Safeguard against infinite loops
+    let pathFound = false;
 
-    while (openSet.length > 0 && animationInProgress.current) {
+    while (openSet.length > 0) {
       iterations++;
       if (iterations > maxIterations) {
         console.log("A* exceeded maximum iterations");
-        return false;
+        break;
       }
 
       // Sort the open set by fScore
@@ -270,26 +331,37 @@ const PathVisualizer = () => {
         current.row === goalPosition.row &&
         current.col === goalPosition.col
       ) {
-        await reconstructPath(cameFrom, goalPosition);
-        return true;
+        pathFound = true;
+        // We'll reconstruct the path after this loop
+        break;
       }
 
       // Add to closed set
       closedSet.add(currentKey);
 
-      // Mark as visited (except start/goal)
+      // Create new state for this step
+      const newGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+      // Mark as visited and current (except start/goal)
       if (
         newGrid[current.row][current.col] !== "start" &&
-        newGrid[current.row][current.col] !== "goal" &&
-        animationInProgress.current
+        newGrid[current.row][current.col] !== "goal"
       ) {
         newGrid[current.row][current.col] = "visited";
-        setGrid([...newGrid]);
-        await delay(20);
       }
 
+      // Add current position marker
+      if (
+        newGrid[current.row][current.col] !== "start" &&
+        newGrid[current.row][current.col] !== "goal"
+      ) {
+        newGrid[current.row][current.col] = "current";
+      }
+
+      steps.push(newGrid);
+
       // Get neighbors
-      const neighbors = getNeighbors(current, newGrid);
+      const neighbors = getNeighbors(current, initialGrid);
 
       // Process each neighbor
       for (const neighbor of neighbors) {
@@ -310,7 +382,7 @@ const PathVisualizer = () => {
           gScore.set(neighborKey, tentativeGScore);
 
           const newFScore =
-            tentativeGScore + heuristic(neighbor, goalPosition) * 2; // Increase heuristic weight
+            tentativeGScore + heuristic(neighbor, goalPosition) * 2;
 
           // Check if neighbor is already in openSet
           const existingIndex = openSet.findIndex(
@@ -330,26 +402,40 @@ const PathVisualizer = () => {
       }
     }
 
-    // No path found
-    return false;
+    // If path was found, reconstruct it
+    if (pathFound) {
+      // We need to add more steps to show the path reconstruction
+      const pathSteps = reconstructPathSteps(
+        cameFrom,
+        goalPosition,
+        steps[steps.length - 1]
+      );
+      steps.push(...pathSteps);
+    }
+
+    return [steps, pathFound];
   };
 
-  // DFS algorithm implementation
-  const visualizeDFS = async () => {
-    const newGrid = [...grid];
+  // Generate all steps for DFS algorithm without animation
+  const generateDFSSteps = async (): Promise<[AnimationStep[], boolean]> => {
+    const steps: AnimationStep[] = [];
+    const initialGrid = [...grid];
+    steps.push(JSON.parse(JSON.stringify(initialGrid))); // Save initial state
+
     const stack: Position[] = [{ ...startPosition }];
     const visited: Set<string> = new Set();
     const cameFrom: Map<string, Position> = new Map();
 
     let iterations = 0;
     const maxIterations = rows * cols * 2; // Safeguard against infinite loops
+    let pathFound = false;
 
     // Start DFS: keep going until stack is empty
-    while (stack.length > 0 && animationInProgress.current) {
+    while (stack.length > 0) {
       iterations++;
       if (iterations > maxIterations) {
         console.log("DFS exceeded maximum iterations");
-        return false;
+        break;
       }
 
       // Get the most recently added position (LIFO - Last In First Out)
@@ -362,31 +448,40 @@ const PathVisualizer = () => {
       // Mark as visited
       visited.add(currentKey);
 
+      // Create new state for this step
+      const newGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+      // Mark as visited (except start/goal)
+      if (
+        newGrid[current.row][current.col] !== "start" &&
+        newGrid[current.row][current.col] !== "goal"
+      ) {
+        newGrid[current.row][current.col] = "visited";
+      }
+
+      // Mark current cell
+      if (
+        newGrid[current.row][current.col] !== "start" &&
+        newGrid[current.row][current.col] !== "goal"
+      ) {
+        newGrid[current.row][current.col] = "current";
+      }
+
+      steps.push(newGrid);
+
       // Goal check
       if (
         current.row === goalPosition.row &&
         current.col === goalPosition.col
       ) {
-        await reconstructPath(cameFrom, goalPosition);
-        return true;
+        pathFound = true;
+        break;
       }
 
-      // Mark as visited in the grid (except start/goal)
-      if (
-        newGrid[current.row][current.col] !== "start" &&
-        newGrid[current.row][current.col] !== "goal" &&
-        animationInProgress.current
-      ) {
-        newGrid[current.row][current.col] = "visited";
-        setGrid([...newGrid]);
-        await delay(20);
-      }
+      // Get neighbors in a specific order
+      const neighbors = getNeighborsInOrder(current, initialGrid);
 
-      // Get neighbors in a specific order: right, down, left, up
-      // This ensures that DFS explores in a consistent direction pattern
-      const neighbors = getNeighborsInOrder(current, newGrid);
-
-      // Add neighbors to stack in reverse order (so the preferred direction gets popped first)
+      // Add neighbors to stack in reverse order
       for (let i = neighbors.length - 1; i >= 0; i--) {
         const neighbor = neighbors[i];
         const neighborKey = `${neighbor.row},${neighbor.col}`;
@@ -398,8 +493,73 @@ const PathVisualizer = () => {
       }
     }
 
-    // No path found
-    return false;
+    // If path was found, reconstruct it
+    if (pathFound) {
+      const pathSteps = reconstructPathSteps(
+        cameFrom,
+        goalPosition,
+        steps[steps.length - 1]
+      );
+      steps.push(...pathSteps);
+    }
+
+    return [steps, pathFound];
+  };
+
+  // Generate steps for path reconstruction
+  const reconstructPathSteps = (
+    cameFrom: Map<string, Position>,
+    current: Position,
+    baseGrid: CellType[][]
+  ): AnimationStep[] => {
+    const pathSteps: AnimationStep[] = [];
+    const path: Position[] = [];
+    let currentPos = current;
+
+    // Reconstruct path from end to start
+    while (true) {
+      path.unshift(currentPos);
+
+      const currentKey = `${currentPos.row},${currentPos.col}`;
+      if (!cameFrom.has(currentKey)) break;
+
+      // Move to previous position
+      currentPos = cameFrom.get(currentKey)!;
+
+      // Safety check to prevent infinite loops
+      if (path.length > rows * cols) {
+        console.error("Path reconstruction exceeded maximum length");
+        break;
+      }
+    }
+
+    // Generate steps for the path visualization
+    let currentGrid = JSON.parse(JSON.stringify(baseGrid));
+
+    // Reset any "current" markers to "visited"
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        if (currentGrid[row][col] === "current") {
+          currentGrid[row][col] = "visited";
+        }
+      }
+    }
+
+    for (let i = 0; i < path.length; i++) {
+      const { row, col } = path[i];
+
+      // Create a new grid state for each step
+      const newGrid = JSON.parse(JSON.stringify(currentGrid));
+
+      if (newGrid[row][col] !== "start" && newGrid[row][col] !== "goal") {
+        newGrid[row][col] = "path";
+      }
+
+      pathSteps.push(newGrid);
+      currentGrid = newGrid;
+    }
+
+    return pathSteps;
   };
 
   // Get neighbors in a specific order: right, down, left, up
@@ -461,60 +621,56 @@ const PathVisualizer = () => {
     return neighbors;
   };
 
-  // Modified heuristic with stronger influence
   const heuristic = (a: Position, b: Position) => {
-    // Euclidean distance but with a stronger weight
     return Math.sqrt(Math.pow(a.row - b.row, 2) + Math.pow(a.col - b.col, 2));
   };
 
-  // Reconstruct path from start to goal
-  const reconstructPath = async (
-    cameFrom: Map<string, Position>,
-    current: Position
-  ) => {
-    if (!animationInProgress.current) return [];
+  // Playback controls
+  const togglePlayPause = () => {
+    setIsPlaying(!isPlaying);
+  };
 
-    const newGrid = [...grid];
-    const path: Position[] = [];
-    let currentPos = current;
-
-    // Reconstruct path from end to start
-    while (true) {
-      path.unshift(currentPos);
-
-      const currentKey = `${currentPos.row},${currentPos.col}`;
-      if (!cameFrom.has(currentKey)) break;
-
-      // Move to previous position
-      currentPos = cameFrom.get(currentKey)!;
-
-      // Safety check to prevent infinite loops
-      if (path.length > rows * cols) {
-        console.error("Path reconstruction exceeded maximum length");
-        break;
-      }
+  const stepForward = (steps: number = 1) => {
+    if (currentStepIndex + steps < animationSteps.length) {
+      const newIndex = currentStepIndex + steps;
+      setCurrentStepIndex(newIndex);
+      setGrid([...animationSteps[newIndex]]);
+    } else {
+      // Jump to last step
+      const lastIndex = animationSteps.length - 1;
+      setCurrentStepIndex(lastIndex);
+      setGrid([...animationSteps[lastIndex]]);
     }
+  };
 
-    // Visualize the path
-    for (let i = 0; i < path.length; i++) {
-      if (!animationInProgress.current) return path;
-
-      const { row, col } = path[i];
-      if (
-        row >= 0 &&
-        row < rows &&
-        col >= 0 &&
-        col < cols &&
-        newGrid[row][col] !== "start" &&
-        newGrid[row][col] !== "goal"
-      ) {
-        newGrid[row][col] = "path";
-        setGrid([...newGrid]);
-        await delay(50);
-      }
+  const stepBackward = (steps: number = 1) => {
+    if (currentStepIndex - steps >= 0) {
+      const newIndex = currentStepIndex - steps;
+      setCurrentStepIndex(newIndex);
+      setGrid([...animationSteps[newIndex]]);
+    } else {
+      // Jump to first step
+      setCurrentStepIndex(0);
+      setGrid([...animationSteps[0]]);
     }
+  };
 
-    return path;
+  const jumpToStart = () => {
+    setCurrentStepIndex(0);
+    setGrid([...animationSteps[0]]);
+    setIsPlaying(false);
+  };
+
+  const jumpToEnd = () => {
+    const lastIndex = animationSteps.length - 1;
+    setCurrentStepIndex(lastIndex);
+    setGrid([...animationSteps[lastIndex]]);
+    setIsPlaying(false);
+  };
+
+  const handleSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Lower value = faster animation
+    setAnimationSpeed(600 - parseInt(e.target.value));
   };
 
   const getCellColor = (cell: CellType) => {
@@ -529,6 +685,8 @@ const PathVisualizer = () => {
         return "bg-yellow-400";
       case "visited":
         return "bg-blue-300";
+      case "current":
+        return "bg-purple-500";
       default:
         return "bg-white";
     }
@@ -586,7 +744,7 @@ const PathVisualizer = () => {
           className="px-3 py-1 border rounded mb-2"
           value={selectedAlgorithm}
           onChange={(e) => setSelectedAlgorithm(e.target.value as Algorithm)}
-          disabled={isVisualizing}
+          disabled={isVisualizing && !algorithmStepsGenerated}
         >
           <option value="a-star">A* Algorithm</option>
           <option value="dfs">DFS Algorithm</option>
@@ -595,9 +753,11 @@ const PathVisualizer = () => {
         <button
           className="px-3 py-1 bg-green-500 text-white rounded disabled:bg-gray-400 mb-2"
           onClick={visualize}
-          disabled={isVisualizing}
+          disabled={isVisualizing && !algorithmStepsGenerated}
         >
-          {isVisualizing ? "Visualizing..." : "Visualize!"}
+          {isVisualizing && !algorithmStepsGenerated
+            ? "Generating..."
+            : "Visualize!"}
         </button>
 
         <button
@@ -614,6 +774,79 @@ const PathVisualizer = () => {
           Clear All
         </button>
       </div>
+
+      {/* Animation Controls - only shown when algorithm steps are generated */}
+      {algorithmStepsGenerated && animationSteps.length > 0 && (
+        <div className="mb-4 flex flex-wrap justify-center items-center gap-2">
+          <button
+            onClick={jumpToStart}
+            className="px-2 py-1 bg-purple-500 text-white rounded"
+          >
+            ⏮️ Start
+          </button>
+          <button
+            onClick={() => stepBackward(5)}
+            className="px-2 py-1 bg-purple-500 text-white rounded"
+          >
+            ⏪ -5 Steps
+          </button>
+          <button
+            onClick={() => stepBackward(1)}
+            className="px-2 py-1 bg-purple-500 text-white rounded"
+          >
+            ◀️ Step Back
+          </button>
+          {isPlaying ? (
+            <button
+              onClick={togglePlayPause}
+              className="px-2 py-1 bg-red-500 text-white rounded"
+            >
+              ⏸️ Pause
+            </button>
+          ) : (
+            <button
+              onClick={togglePlayPause}
+              className="px-2 py-1 bg-green-500 text-white rounded"
+            >
+              ▶️ Play
+            </button>
+          )}
+          <button
+            onClick={() => stepForward(1)}
+            className="px-2 py-1 bg-purple-500 text-white rounded"
+          >
+            ▶️ Step Forward
+          </button>
+          <button
+            onClick={() => stepForward(5)}
+            className="px-2 py-1 bg-purple-500 text-white rounded"
+          >
+            ⏩ +5 Steps
+          </button>
+          <button
+            onClick={jumpToEnd}
+            className="px-2 py-1 bg-purple-500 text-white rounded"
+          >
+            ⏭️ End
+          </button>
+
+          <div className="flex items-center ml-2">
+            <span className="mr-2">Speed:</span>
+            <input
+              type="range"
+              min="100"
+              max="500"
+              value={600 - animationSpeed}
+              onChange={handleSpeedChange}
+              className="w-32"
+            />
+          </div>
+
+          <div className="ml-2">
+            Step: {currentStepIndex + 1} / {animationSteps.length}
+          </div>
+        </div>
+      )}
 
       <div
         className="grid grid-cols-1 gap-0 border border-gray-300"
@@ -652,6 +885,10 @@ const PathVisualizer = () => {
         <div className="flex items-center m-1">
           <div className="w-4 h-4 bg-blue-300 mr-1"></div>
           <span>Visited</span>
+        </div>
+        <div className="flex items-center m-1">
+          <div className="w-4 h-4 bg-purple-500 mr-1"></div>
+          <span>Current</span>
         </div>
         <div className="flex items-center m-1">
           <div className="w-4 h-4 bg-yellow-400 mr-1"></div>
