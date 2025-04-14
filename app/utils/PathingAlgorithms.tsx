@@ -183,16 +183,17 @@ export const computeAStarSteps = (
   const initialGrid = JSON.parse(JSON.stringify(grid));
   steps.push(JSON.parse(JSON.stringify(initialGrid))); // Save initial state
 
-  const openSet: { position: Position; fScore: number }[] = [
+  // Modified to track complete path for each node
+  const openSet: { position: Position; fScore: number; path: Position[] }[] = [
     {
       position: startPosition,
       fScore: heuristic(startPosition, goalPosition),
+      path: [startPosition],
     },
   ];
 
   const closedSet: Set<string> = new Set();
   const gScore: Map<string, number> = new Map();
-  const cameFrom: Map<string, Position> = new Map();
 
   // Initialize start position
   gScore.set(`${startPosition.row},${startPosition.col}`, 0);
@@ -200,6 +201,7 @@ export const computeAStarSteps = (
   let iterations = 0;
   const maxIterations = rows * cols * 2; // Safeguard against infinite loops
   let pathFound = false;
+  let finalPath: Position[] = [];
 
   while (openSet.length > 0) {
     iterations++;
@@ -212,42 +214,53 @@ export const computeAStarSteps = (
     openSet.sort((a, b) => a.fScore - b.fScore);
 
     // Get the node with lowest fScore
-    const current = openSet.shift()!.position;
-    const currentKey = `${current.row},${current.col}`;
+    const current = openSet.shift()!;
+    const currentPos = current.position;
+    const currentPath = current.path;
+    const currentKey = `${currentPos.row},${currentPos.col}`;
+
+    // Skip if already evaluated
+    if (closedSet.has(currentKey)) continue;
+
+    // Create new state for this step - FIRST mark as CURRENT
+    const currentGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+    // Mark as current (except start/goal)
+    if (
+      currentGrid[currentPos.row][currentPos.col] !== "start" &&
+      currentGrid[currentPos.row][currentPos.col] !== "goal"
+    ) {
+      currentGrid[currentPos.row][currentPos.col] = "current";
+      steps.push(currentGrid);
+    }
 
     // Goal check
-    if (current.row === goalPosition.row && current.col === goalPosition.col) {
+    if (
+      currentPos.row === goalPosition.row &&
+      currentPos.col === goalPosition.col
+    ) {
       pathFound = true;
-      // We'll reconstruct the path after this loop
+      finalPath = currentPath;
       break;
     }
 
     // Add to closed set
     closedSet.add(currentKey);
 
-    // Create new state for this step
-    const newGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+    // Create new state for this step - THEN mark as VISITED
+    const visitedGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
 
-    // Mark as visited and current (except start/goal)
+    // Mark as visited (except start/goal)
     if (
-      newGrid[current.row][current.col] !== "start" &&
-      newGrid[current.row][current.col] !== "goal"
+      visitedGrid[currentPos.row][currentPos.col] !== "start" &&
+      visitedGrid[currentPos.row][currentPos.col] !== "goal"
     ) {
-      newGrid[current.row][current.col] = "visited";
+      visitedGrid[currentPos.row][currentPos.col] = "visited";
+      steps.push(visitedGrid);
     }
-
-    // Add current position marker
-    if (
-      newGrid[current.row][current.col] !== "start" &&
-      newGrid[current.row][current.col] !== "goal"
-    ) {
-      newGrid[current.row][current.col] = "current";
-    }
-
-    steps.push(newGrid);
 
     // Get neighbors
-    const neighbors = getNeighbors(current, initialGrid, rows, cols);
+    const neighbors = getNeighbors(currentPos, initialGrid, rows, cols);
 
     // Process each neighbor
     for (const neighbor of neighbors) {
@@ -264,11 +277,13 @@ export const computeAStarSteps = (
 
       if (tentativeGScore < existingGScore) {
         // This is a better path - record it
-        cameFrom.set(neighborKey, current);
         gScore.set(neighborKey, tentativeGScore);
 
         const newFScore =
           tentativeGScore + heuristic(neighbor, goalPosition) * 2;
+
+        // Create the new path by appending the neighbor to the current path
+        const newPath = [...currentPath, neighbor];
 
         // Check if neighbor is already in openSet
         const existingIndex = openSet.findIndex(
@@ -280,25 +295,35 @@ export const computeAStarSteps = (
         if (existingIndex !== -1) {
           // Update existing entry
           openSet[existingIndex].fScore = newFScore;
+          openSet[existingIndex].path = newPath;
         } else {
           // Add new entry
-          openSet.push({ position: neighbor, fScore: newFScore });
+          openSet.push({
+            position: neighbor,
+            fScore: newFScore,
+            path: newPath,
+          });
         }
       }
     }
   }
 
-  // If path was found, reconstruct it
-  if (pathFound) {
-    // We need to add more steps to show the path reconstruction
-    const pathSteps = reconstructPathSteps(
-      cameFrom,
-      goalPosition,
-      steps[steps.length - 1],
-      rows,
-      cols
-    );
-    steps.push(...pathSteps);
+  // If path was found, visualize it directly
+  if (pathFound && finalPath.length > 0) {
+    // Skip start and end positions
+    for (let i = 1; i < finalPath.length - 1; i++) {
+      const { row, col } = finalPath[i];
+
+      // Create a new grid state for this step
+      const pathGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+      // Mark as path if not start or goal
+      if (pathGrid[row][col] !== "start" && pathGrid[row][col] !== "goal") {
+        pathGrid[row][col] = "path";
+      }
+
+      steps.push(pathGrid);
+    }
   }
 
   return { steps, pathFound };
@@ -316,13 +341,14 @@ export const computeDFSSteps = (
   const initialGrid = JSON.parse(JSON.stringify(grid));
   steps.push(JSON.parse(JSON.stringify(initialGrid))); // Save initial state
 
-  const stack: Position[] = [{ ...startPosition }];
+  // Modified to track complete path for each node
+  const stack: [Position, Position[]][] = [[startPosition, [startPosition]]];
   const visited: Set<string> = new Set();
-  const cameFrom: Map<string, Position> = new Map();
 
   let iterations = 0;
   const maxIterations = rows * cols * 2; // Safeguard against infinite loops
   let pathFound = false;
+  let finalPath: Position[] = [];
 
   // Start DFS: keep going until stack is empty
   while (stack.length > 0) {
@@ -332,41 +358,45 @@ export const computeDFSSteps = (
       break;
     }
 
-    // Get the most recently added position (LIFO - Last In First Out)
-    const current = stack.pop()!;
+    // Get the most recently added position and its path (LIFO - Last In First Out)
+    const [current, currentPath] = stack.pop()!;
     const currentKey = `${current.row},${current.col}`;
 
     // Skip if already visited
     if (visited.has(currentKey)) continue;
 
-    // Mark as visited
-    visited.add(currentKey);
+    // Create new state for this step - FIRST mark as CURRENT
+    const currentGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
 
-    // Create new state for this step
-    const newGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
-
-    // Mark as visited (except start/goal)
+    // Mark as current (except start/goal)
     if (
-      newGrid[current.row][current.col] !== "start" &&
-      newGrid[current.row][current.col] !== "goal"
+      currentGrid[current.row][current.col] !== "start" &&
+      currentGrid[current.row][current.col] !== "goal"
     ) {
-      newGrid[current.row][current.col] = "visited";
+      currentGrid[current.row][current.col] = "current";
+      steps.push(currentGrid);
     }
-
-    // Mark current cell
-    if (
-      newGrid[current.row][current.col] !== "start" &&
-      newGrid[current.row][current.col] !== "goal"
-    ) {
-      newGrid[current.row][current.col] = "current";
-    }
-
-    steps.push(newGrid);
 
     // Goal check
     if (current.row === goalPosition.row && current.col === goalPosition.col) {
       pathFound = true;
+      finalPath = currentPath;
       break;
+    }
+
+    // Mark as visited
+    visited.add(currentKey);
+
+    // Create new state for this step - THEN mark as VISITED
+    const visitedGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+    // Mark as visited (except start/goal)
+    if (
+      visitedGrid[current.row][current.col] !== "start" &&
+      visitedGrid[current.row][current.col] !== "goal"
+    ) {
+      visitedGrid[current.row][current.col] = "visited";
+      steps.push(visitedGrid);
     }
 
     // Get neighbors in a specific order
@@ -378,22 +408,234 @@ export const computeDFSSteps = (
       const neighborKey = `${neighbor.row},${neighbor.col}`;
 
       if (!visited.has(neighborKey)) {
-        stack.push(neighbor);
-        cameFrom.set(neighborKey, current);
+        stack.push([neighbor, [...currentPath, neighbor]]);
       }
     }
   }
 
-  // If path was found, reconstruct it
+  // If path was found, visualize it directly
+  if (pathFound && finalPath.length > 0) {
+    // Skip start and end positions
+    for (let i = 1; i < finalPath.length - 1; i++) {
+      const { row, col } = finalPath[i];
+
+      // Create a new grid state for this step
+      const pathGrid = JSON.parse(JSON.stringify(steps[steps.length - 1]));
+
+      // Mark as path if not start or goal
+      if (pathGrid[row][col] !== "start" && pathGrid[row][col] !== "goal") {
+        pathGrid[row][col] = "path";
+      }
+
+      steps.push(pathGrid);
+    }
+  }
+
+  return { steps, pathFound };
+};
+
+// Breadth-First Search (BFS) Visualization Logic
+export const computeBFSSteps = (
+  grid: CellType[][],
+  startPosition: Position,
+  goalPosition: Position,
+  rows: number,
+  cols: number
+): { steps: CellType[][][]; pathFound: boolean } => {
+  // Create a copy of the grid for our visualization
+  const gridCopy: CellType[][] = grid.map((row) => [...row]);
+  const steps: CellType[][][] = [JSON.parse(JSON.stringify(gridCopy))];
+
+  // Queue for BFS, starting with the start position
+  const queue: [Position, Position[]][] = [[startPosition, [startPosition]]];
+
+  // Keep track of visited cells
+  const visited: boolean[][] = Array(rows)
+    .fill(0)
+    .map(() => Array(cols).fill(false));
+  visited[startPosition.row][startPosition.col] = true;
+
+  // Directions to explore (up, right, down, left)
+  const directions = [
+    { row: -1, col: 0 },
+    { row: 0, col: 1 },
+    { row: 1, col: 0 },
+    { row: 0, col: -1 },
+  ];
+
+  let pathFound = false;
+  let finalPath: Position[] = [];
+
+  while (queue.length > 0) {
+    const [current, path] = queue.shift()!;
+
+    // Mark current cell as being processed
+    if (
+      gridCopy[current.row][current.col] !== "start" &&
+      gridCopy[current.row][current.col] !== "goal"
+    ) {
+      gridCopy[current.row][current.col] = "current";
+      steps.push(JSON.parse(JSON.stringify(gridCopy)));
+    }
+
+    // Check if we've reached the goal
+    if (current.row === goalPosition.row && current.col === goalPosition.col) {
+      pathFound = true;
+      finalPath = [...path];
+      break;
+    }
+
+    // Mark as visited after processing
+    if (
+      gridCopy[current.row][current.col] !== "start" &&
+      gridCopy[current.row][current.col] !== "goal"
+    ) {
+      gridCopy[current.row][current.col] = "visited";
+      steps.push(JSON.parse(JSON.stringify(gridCopy)));
+    }
+
+    // Explore all four directions
+    for (const dir of directions) {
+      const nextRow = current.row + dir.row;
+      const nextCol = current.col + dir.col;
+
+      // Check if the new position is valid
+      if (
+        nextRow >= 0 &&
+        nextRow < rows &&
+        nextCol >= 0 &&
+        nextCol < cols &&
+        !visited[nextRow][nextCol] &&
+        grid[nextRow][nextCol] !== "wall"
+      ) {
+        visited[nextRow][nextCol] = true;
+        const nextPos = { row: nextRow, col: nextCol };
+        queue.push([nextPos, [...path, nextPos]]);
+      }
+    }
+  }
+
+  // If a path was found, visualize it
   if (pathFound) {
-    const pathSteps = reconstructPathSteps(
-      cameFrom,
-      goalPosition,
-      steps[steps.length - 1],
-      rows,
-      cols
+    for (let i = 1; i < finalPath.length - 1; i++) {
+      const { row, col } = finalPath[i];
+      if (gridCopy[row][col] !== "start" && gridCopy[row][col] !== "goal") {
+        gridCopy[row][col] = "path";
+        steps.push(JSON.parse(JSON.stringify(gridCopy)));
+      }
+    }
+  }
+
+  return { steps, pathFound };
+};
+
+// Greedy Best-First Search Visualization Logic
+export const computeGreedyBestFirstSteps = (
+  grid: CellType[][],
+  startPosition: Position,
+  goalPosition: Position,
+  rows: number,
+  cols: number
+): { steps: CellType[][][]; pathFound: boolean } => {
+  // Create a copy of the grid for our visualization
+  const gridCopy: CellType[][] = grid.map((row) => [...row]);
+  const steps: CellType[][][] = [JSON.parse(JSON.stringify(gridCopy))];
+
+  // Priority queue using array, sorted by heuristic (estimated distance to goal)
+  const openSet: [Position, number, Position[]][] = [
+    [startPosition, 0, [startPosition]],
+  ];
+
+  // Keep track of visited cells
+  const visited: boolean[][] = Array(rows)
+    .fill(0)
+    .map(() => Array(cols).fill(false));
+
+  // Directions to explore (up, right, down, left)
+  const directions = [
+    { row: -1, col: 0 },
+    { row: 0, col: 1 },
+    { row: 1, col: 0 },
+    { row: 0, col: -1 },
+  ];
+
+  let pathFound = false;
+  let finalPath: Position[] = [];
+
+  // Heuristic function: Manhattan distance to goal
+  const heuristic = (pos: Position): number => {
+    return (
+      Math.abs(pos.row - goalPosition.row) +
+      Math.abs(pos.col - goalPosition.col)
     );
-    steps.push(...pathSteps);
+  };
+
+  while (openSet.length > 0) {
+    // Sort by heuristic value (ascending)
+    openSet.sort((a, b) => a[1] - b[1]);
+
+    const [current, _, path] = openSet.shift()!;
+
+    // Skip if already visited
+    if (visited[current.row][current.col]) continue;
+    visited[current.row][current.col] = true;
+
+    // Mark current cell as being processed
+    if (
+      gridCopy[current.row][current.col] !== "start" &&
+      gridCopy[current.row][current.col] !== "goal"
+    ) {
+      gridCopy[current.row][current.col] = "current";
+      steps.push(JSON.parse(JSON.stringify(gridCopy)));
+    }
+
+    // Check if we've reached the goal
+    if (current.row === goalPosition.row && current.col === goalPosition.col) {
+      pathFound = true;
+      finalPath = [...path];
+      break;
+    }
+
+    // Mark as visited after processing
+    if (
+      gridCopy[current.row][current.col] !== "start" &&
+      gridCopy[current.row][current.col] !== "goal"
+    ) {
+      gridCopy[current.row][current.col] = "visited";
+      steps.push(JSON.parse(JSON.stringify(gridCopy)));
+    }
+
+    // Explore all four directions
+    for (const dir of directions) {
+      const nextRow = current.row + dir.row;
+      const nextCol = current.col + dir.col;
+
+      // Check if the new position is valid
+      if (
+        nextRow >= 0 &&
+        nextRow < rows &&
+        nextCol >= 0 &&
+        nextCol < cols &&
+        !visited[nextRow][nextCol] &&
+        grid[nextRow][nextCol] !== "wall"
+      ) {
+        const nextPos = { row: nextRow, col: nextCol };
+        // For Greedy Best-First, we only consider the heuristic
+        const h = heuristic(nextPos);
+        openSet.push([nextPos, h, [...path, nextPos]]);
+      }
+    }
+  }
+
+  // If a path was found, visualize it
+  if (pathFound) {
+    for (let i = 1; i < finalPath.length - 1; i++) {
+      const { row, col } = finalPath[i];
+      if (gridCopy[row][col] !== "start" && gridCopy[row][col] !== "goal") {
+        gridCopy[row][col] = "path";
+        steps.push(JSON.parse(JSON.stringify(gridCopy)));
+      }
+    }
   }
 
   return { steps, pathFound };
