@@ -1,4 +1,3 @@
-// app/auth/signin/page.tsx
 "use client";
 
 import { signIn } from "next-auth/react";
@@ -13,7 +12,7 @@ export default function SignInPage() {
     await signIn("credentials", {
       email,
       password,
-      callbackUrl: "/", // Redirect after login
+      callbackUrl: "/",
     });
   };
 
@@ -35,7 +34,10 @@ export default function SignInPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <button type="submit" className="bg-black text-white px-4 py-2 rounded">
+        <button
+          type="submit"
+          className="w-full py-2 rounded-md transition bg-gray-800 text-gray-300 hover:bg-gray-700"
+        >
           Login
         </button>
       </form>

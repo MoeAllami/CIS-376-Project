@@ -1,11 +1,11 @@
-import './globals.css';
-import React from 'react';
-import LayoutWrapper from './components/LayoutWrapper';
-import SessionWrapper from './components/SessionWrapper';
+import "./globals.css";
+import React from "react";
+import LayoutWrapper from "./components/LayoutWrapper";
+import SessionWrapper from "./components/SessionWrapper";
 
 export const metadata = {
-  title: 'AlgoCanvas',
-  description: 'Interactive algorithm visualizer',
+  title: "AlgoCanvas",
+  description: "Interactive algorithm visualizer",
 };
 
 export default function RootLayout({
