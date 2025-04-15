@@ -155,7 +155,6 @@ const SortingVisualizer = () => {
           highlights,
           descriptions,
           sortedIndices,
-          algorithm: selectedAlgorithm,
           speed,
           arraySize,
         }
@@ -184,9 +183,8 @@ const SortingVisualizer = () => {
     setHighlights(highlights);
     setDescriptions(descriptions);
     setSortedIndices(sortedIndices);
-    setSelectedAlgorithm(algorithm);
-    setSpeed(loadedSpeed || 300); // fallback to default
-    setArraySize(loadedSize || 10); // fallback to default
+    setSpeed(loadedSpeed || 300);
+    setArraySize(loadedSize || 10);
     setCurrentStep(0);
   };
   
