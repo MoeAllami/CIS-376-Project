@@ -89,6 +89,27 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ---
 
+File Overview & Routing Structure
+
+/app – App routes (app/page.tsx, app/sorting/page.tsx, etc.)
+
+/components – UI components (modals, buttons, grid, etc.)
+
+/api – API routes for sorting, pathfinding, saving/loading
+
+/api/auth – NextAuth and user registration/login logic
+
+/lib – Reusable logic (e.g., mongodb.ts)
+
+/models – Mongoose models for persistence
+
+/utils – Algorithms and helper logic
+
+/pages/api/auth - API routes for registration and logging in (nextauth).
+
+All files are modularized by purpose (feature folders), following common Next.js conventions.
+
+---
 
 
 ## Learn More
