@@ -217,7 +217,7 @@ const SortingVisualizer = () => {
               setModalMode("load");
               setModalOpen(true);
             }}
-            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+            className="bg-gray-800 text-gray-300 hover:bg-gray-700 px-4 py-2 rounded"
           >
             Load
           </button>

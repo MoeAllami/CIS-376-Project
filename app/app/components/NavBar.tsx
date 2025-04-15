@@ -52,7 +52,7 @@ const NavBar = () => {
           {session ? (
             <>
               <span className="text-sm text-gray-300">
-                Signed in as{" "}
+                {" "}
                 <span className="font-medium">{session.user?.email}</span>
               </span>
               <button
