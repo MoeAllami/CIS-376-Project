@@ -2,18 +2,29 @@
 
 import { signIn } from "next-auth/react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function SignInPage() {
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-    await signIn("credentials", {
+
+    const res = await signIn("credentials", {
       email,
       password,
-      callbackUrl: "/",
+      redirect: false,
     });
+
+    if (res?.error) {
+      setError("Invalid email or password");
+    } else if (res?.ok) {
+      router.push("/");
+    }
   };
 
   return (
@@ -26,6 +37,7 @@ export default function SignInPage() {
           className="border w-full p-2 text-black"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          required
         />
         <input
           type="password"
@@ -33,6 +45,7 @@ export default function SignInPage() {
           className="border w-full p-2 text-black"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          required
         />
         <button
           type="submit"
@@ -40,6 +53,7 @@ export default function SignInPage() {
         >
           Login
         </button>
+        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
       </form>
     </div>
   );

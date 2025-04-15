@@ -1,15 +1,10 @@
 "use client";
 import NavBar from "./NavBar";
 
-export default function LayoutWrapper({
-  children,
-}: {
+interface Props {
   children: React.ReactNode;
-}) {
-  return (
-    <>
-      {<NavBar />}
-      <main>{children}</main>
-    </>
-  );
+}
+
+export default function LayoutWrapper({ children }: Props) {
+  return <main className="max-w-7xl mx-auto px-6 w-full">{children}</main>;
 }

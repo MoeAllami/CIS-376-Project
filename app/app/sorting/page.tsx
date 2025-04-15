@@ -195,14 +195,14 @@ const SortingVisualizer = () => {
   };
 
   return (
-    <div className="w-screen h-screen overflow-hidden flex flex-col items-center bg-gray-900">
-      <h2 className="text-2xl font-bold mt-4 mb-2 text-blue-400">
+    <div className="w-full max-w-7xl mx-auto px-6 flex flex-col items-center space-y-4">
+      <h2 className="text-2xl font-bold mt-4 text-blue-400">
         Sorting Visualizer
       </h2>
 
-      {/* Top control buttons */}
+      {/* Top Save/Load Buttons */}
       {session?.user && (
-        <div className="flex space-x-4 mb-2">
+        <div className="flex space-x-4">
           <button
             onClick={() => {
               setModalMode("save");
@@ -226,6 +226,7 @@ const SortingVisualizer = () => {
 
       {/* Control Panel */}
       <div className="bg-gray-800 rounded-xl shadow-lg p-4 w-11/12 max-w-4xl text-white space-y-4">
+        {/* Step Description */}
         <div className="text-center">
           <p className="text-lg font-medium">
             Step {currentStep + 1}:{" "}
@@ -241,6 +242,7 @@ const SortingVisualizer = () => {
 
         {/* Sorting Controls */}
         <div className="flex flex-wrap justify-center gap-4">
+          {/* Speed slider */}
           <div>
             <label className="mr-2 font-semibold">Speed:</label>
             <input
@@ -252,6 +254,8 @@ const SortingVisualizer = () => {
             />
             <span className="ml-2">{speed} ms</span>
           </div>
+
+          {/* Array Size slider */}
           <div>
             <label className="mr-2 font-semibold">Array Size:</label>
             <input
@@ -263,6 +267,8 @@ const SortingVisualizer = () => {
             />
             <span className="ml-2">{arraySize}</span>
           </div>
+
+          {/* Algorithm select */}
           <div>
             <label className="mr-2 font-semibold">Algorithm:</label>
             <select
@@ -330,13 +336,15 @@ const SortingVisualizer = () => {
       </div>
 
       {/* SVG Container */}
-      <svg
-        ref={svgRef}
-        className="w-full h-[40vh] mt-auto"
-        preserveAspectRatio="none"
-      />
+      <div className="w-11/12 max-w-6xl mt-6 mb-4 bg-gray-800 rounded-xl shadow-lg p-4">
+        <svg
+          ref={svgRef}
+          className="w-full h-[40vh]"
+          preserveAspectRatio="none"
+        />
+      </div>
 
-      {/* Save/Load Modal */}
+      {/* Modal */}
       {session?.user && (
         <SaveLoadModal
           isOpen={modalOpen}

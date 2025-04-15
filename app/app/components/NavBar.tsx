@@ -8,7 +8,6 @@ const NavBar = () => {
   const pathname = usePathname() ?? "";
   const { data: session } = useSession();
 
-  // Reusable button class
   const navButton = (active: boolean) =>
     `px-4 py-2 rounded-md transition ${
       active
@@ -16,15 +15,14 @@ const NavBar = () => {
         : "bg-gray-800 text-gray-300 hover:bg-gray-700"
     }`;
 
-  // Paths where we want to hide Sorting/Pathfinding nav
   const hiddenNavPaths = ["/", "/auth/signin", "/auth/register"];
   const showNavButtons = !hiddenNavPaths.includes(pathname);
 
   return (
-    <nav className="bg-gray-900 text-white border-b border-gray-800 shadow-md w-full">
-      <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-3">
+    <nav className="bg-gray-900 text-white border-b border-gray-800 shadow-md w-full relative h-[4.5rem]">
+      <div className="max-w-7xl mx-auto w-full h-full px-6 relative flex items-center justify-center">
         {/* Left: Logo */}
-        <div className="flex items-center space-x-2">
+        <div className="absolute left-6 top-1/2 -translate-y-1/2">
           <Link
             href="/"
             className="text-xl font-bold text-blue-400 hover:underline"
@@ -33,9 +31,9 @@ const NavBar = () => {
           </Link>
         </div>
 
-        {/* Center: Navigation Buttons */}
+        {/* Center: Sorting / Pathfinding */}
         {showNavButtons && (
-          <div className="flex gap-2">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-2">
             <Link href="/sorting">
               <button className={navButton(pathname === "/sorting")}>
                 Sorting
@@ -50,7 +48,7 @@ const NavBar = () => {
         )}
 
         {/* Right: Auth Controls */}
-        <div className="flex items-center gap-3">
+        <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-3">
           {session ? (
             <>
               <span className="text-sm text-gray-300">
