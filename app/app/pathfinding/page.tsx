@@ -1,5 +1,8 @@
 'use client';
+
 import { useState, useEffect, useRef } from "react";
+import { useSession } from 'next-auth/react';
+import SaveLoadModal from '../components/SaveLoadModal';
 import {
   CellType,
   Position,
@@ -10,17 +13,13 @@ type Tool = "wall" | "start" | "goal" | "eraser";
 type AnimationStep = CellType[][];
 
 const PathVisualizer = () => {
+  const { data: session } = useSession();
+
   const rows = 20;
   const cols = 30;
   const [grid, setGrid] = useState<CellType[][]>([]);
-  const [startPosition, setStartPosition] = useState<Position>({
-    row: 5,
-    col: 5,
-  });
-  const [goalPosition, setGoalPosition] = useState<Position>({
-    row: 15,
-    col: 25,
-  });
+  const [startPosition, setStartPosition] = useState<Position>({ row: 5, col: 5 });
+  const [goalPosition, setGoalPosition] = useState<Position>({ row: 15, col: 25 });
   const [selectedTool, setSelectedTool] = useState<Tool>("wall");
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm>("a-star");
   const [isVisualizing, setIsVisualizing] = useState(false);
@@ -32,6 +31,10 @@ const PathVisualizer = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [animationSpeed, setAnimationSpeed] = useState(100); // milliseconds
   const [algorithmStepsGenerated, setAlgorithmStepsGenerated] = useState(false);
+
+  // Save/load modal
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'save' | 'load'>('save');
 
   // Animation refs
   const playbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -48,10 +51,7 @@ const PathVisualizer = () => {
   // Animation playback effect
   useEffect(() => {
     if (!isPlaying || currentStepIndex >= animationSteps.length - 1) {
-      if (
-        currentStepIndex >= animationSteps.length - 1 &&
-        animationSteps.length > 0
-      ) {
+      if (currentStepIndex >= animationSteps.length - 1 && animationSteps.length > 0) {
         setIsPlaying(false);
       }
       return;
@@ -123,10 +123,8 @@ const PathVisualizer = () => {
     const newGrid = [...grid];
     const currentCell = newGrid[row][col];
 
-    if (
-      (currentCell === "start" && selectedTool !== "start") ||
-      (currentCell === "goal" && selectedTool !== "goal")
-    ) {
+    if ((currentCell === "start" && selectedTool !== "start") ||
+        (currentCell === "goal" && selectedTool !== "goal")) {
       return;
     }
 
@@ -172,7 +170,6 @@ const PathVisualizer = () => {
     setCurrentStepIndex(0);
 
     const newGrid = [...grid];
-
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         if (["path", "visited", "current", "frontier"].includes(newGrid[row][col])) {
@@ -239,6 +236,40 @@ const PathVisualizer = () => {
     }
   };
 
+  // Save current visualization
+  const handleSave = async (name: string) => {
+    await fetch('/api/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'pathfinding',
+        name,
+        data: {
+          grid,
+          startPosition,
+          goalPosition,
+          selectedAlgorithm,
+          animationSpeed
+        }
+      })
+    });
+  };
+
+  // Load a saved visualization
+  const handleLoad = async (itemId: string) => {
+    const res = await fetch(`/api/load?id=${itemId}`);
+    const { visualization } = await res.json();
+    const { grid, startPosition, goalPosition, selectedAlgorithm, animationSpeed } = visualization.data;
+    setGrid(grid);
+    setStartPosition(startPosition);
+    setGoalPosition(goalPosition);
+    setSelectedAlgorithm(selectedAlgorithm);
+    setAnimationSpeed(animationSpeed);
+    setCurrentStepIndex(0);
+    setAnimationSteps([]);
+    setAlgorithmStepsGenerated(false);
+  };
+
   // Playback controls
   const togglePlayPause = () => {
     setIsPlaying(!isPlaying);
@@ -291,6 +322,28 @@ const PathVisualizer = () => {
       <h1 className="text-2xl font-bold text-center py-3 text-blue-400">
         Pathfinding Visualizer
       </h1>
+
+      {/* Top Save/Load Buttons */}
+      {session?.user && (
+        <div className="flex justify-center gap-4 mb-3">
+          <button onClick={() => { setModalMode('save'); setModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+            Save
+          </button>
+          <button onClick={() => { setModalMode('load'); setModalOpen(true); }} className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">
+            Load
+          </button>
+        </div>
+      )}
+
+      {/* Save/Load Modal */}
+      <SaveLoadModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        mode={modalMode}
+        type="pathfinding"
+        onSave={handleSave}
+        onLoad={handleLoad}
+      />
 
       {/* Controls Panel - Moved to top */}
       <div className="flex flex-col space-y-2 px-4 mb-3">
