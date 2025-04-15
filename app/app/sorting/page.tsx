@@ -3,10 +3,14 @@
 import { useState, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { SortResult } from '@/utils/SortingAlgorithms';
+import SaveLoadModal from '../components/SaveLoadModal';
+import { useSession } from 'next-auth/react';
 
 const SortingVisualizer = () => {
   // SVG reference for D3 rendering
   const svgRef = useRef<SVGSVGElement>(null);
+
+  const { data: session } = useSession();
 
   // State variables
   const [array, setArray] = useState<number[]>([]);
@@ -20,6 +24,10 @@ const SortingVisualizer = () => {
   const [selectedAlgorithm, setSelectedAlgorithm] = useState('bubble');
   const [isPlaying, setIsPlaying] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Save/load modal
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'save' | 'load'>('save');
 
   // Generate a new random array and fetch sorting steps from the server
   const generateArray = async () => {
@@ -133,9 +141,71 @@ const SortingVisualizer = () => {
     if (currentStep > 0) setCurrentStep(currentStep - 1);
   };
 
+  // Save current visualization
+  const handleSave = async (name: string) => {
+    await fetch('/api/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'sorting',
+        name,
+        data: {
+          array,
+          steps,
+          highlights,
+          descriptions,
+          sortedIndices,
+          algorithm: selectedAlgorithm,
+          speed,
+          arraySize,
+        }
+      })
+    });
+  };
+  
+
+  // Load a saved visualization
+  const handleLoad = async (itemId: string) => {
+    const res = await fetch(`/api/load?id=${itemId}`);
+    const { visualization } = await res.json();
+    const {
+      array,
+      steps,
+      highlights,
+      descriptions,
+      sortedIndices,
+      algorithm,
+      speed: loadedSpeed,
+      arraySize: loadedSize
+    } = visualization.data;
+  
+    setArray(array);
+    setSteps(steps);
+    setHighlights(highlights);
+    setDescriptions(descriptions);
+    setSortedIndices(sortedIndices);
+    setSelectedAlgorithm(algorithm);
+    setSpeed(loadedSpeed || 300); // fallback to default
+    setArraySize(loadedSize || 10); // fallback to default
+    setCurrentStep(0);
+  };
+  
+
   return (
     <div className="w-screen h-screen overflow-hidden flex flex-col items-center bg-gray-900">
       <h2 className="text-2xl font-bold text-white mt-4 mb-2">Sorting Visualizer</h2>
+
+      {/* Top control buttons */}
+      {session?.user && (
+        <div className="flex space-x-4 mb-2">
+          <button onClick={() => { setModalMode('save'); setModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+            Save
+          </button>
+          <button onClick={() => { setModalMode('load'); setModalOpen(true); }} className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">
+            Load
+          </button>
+        </div>
+      )}
 
       {/* Control Panel */}
       <div className="bg-gray-800 rounded-xl shadow-lg p-4 w-11/12 max-w-4xl text-white space-y-4">
@@ -212,6 +282,18 @@ const SortingVisualizer = () => {
 
       {/* SVG Container */}
       <svg ref={svgRef} className="w-full h-[40vh] mt-auto" preserveAspectRatio="none" />
+
+      {/* Save/Load Modal */}
+      {session?.user && (
+        <SaveLoadModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          mode={modalMode}
+          type="sorting"
+          onSave={handleSave}
+          onLoad={handleLoad}
+        />
+      )}
     </div>
   );
 };

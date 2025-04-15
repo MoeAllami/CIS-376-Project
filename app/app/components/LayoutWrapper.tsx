@@ -3,7 +3,6 @@
 // NavBar is only shown when not on the homepage ("/")
 
 'use client';
-import { usePathname } from 'next/navigation';
 import NavBar from './NavBar';
 
 export default function LayoutWrapper({
@@ -11,8 +10,6 @@ export default function LayoutWrapper({
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
-
   return (
     <>
       {<NavBar />}
