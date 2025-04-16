@@ -1,12 +1,9 @@
-'use client';
+"use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useSession } from 'next-auth/react';
-import SaveLoadModal from '../components/SaveLoadModal';
-import {
-  CellType,
-  Position,
-} from "@/utils/PathingAlgorithms";
+import { useSession } from "next-auth/react";
+import SaveLoadModal from "../components/SaveLoadModal";
+import { CellType, Position } from "@/utils/PathingAlgorithms";
 
 type Algorithm = "a-star" | "dfs" | "bfs" | "greedy";
 type Tool = "wall" | "start" | "goal" | "eraser";
@@ -18,10 +15,17 @@ const PathVisualizer = () => {
   const rows = 20;
   const cols = 30;
   const [grid, setGrid] = useState<CellType[][]>([]);
-  const [startPosition, setStartPosition] = useState<Position>({ row: 5, col: 5 });
-  const [goalPosition, setGoalPosition] = useState<Position>({ row: 15, col: 25 });
+  const [startPosition, setStartPosition] = useState<Position>({
+    row: 5,
+    col: 5,
+  });
+  const [goalPosition, setGoalPosition] = useState<Position>({
+    row: 15,
+    col: 25,
+  });
   const [selectedTool, setSelectedTool] = useState<Tool>("wall");
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm>("a-star");
+  const [selectedAlgorithm, setSelectedAlgorithm] =
+    useState<Algorithm>("a-star");
   const [isVisualizing, setIsVisualizing] = useState(false);
   const [isMousePressed, setIsMousePressed] = useState(false);
 
@@ -34,7 +38,7 @@ const PathVisualizer = () => {
 
   // Save/load modal
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<'save' | 'load'>('save');
+  const [modalMode, setModalMode] = useState<"save" | "load">("save");
 
   // Animation refs
   const playbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -51,7 +55,10 @@ const PathVisualizer = () => {
   // Animation playback effect
   useEffect(() => {
     if (!isPlaying || currentStepIndex >= animationSteps.length - 1) {
-      if (currentStepIndex >= animationSteps.length - 1 && animationSteps.length > 0) {
+      if (
+        currentStepIndex >= animationSteps.length - 1 &&
+        animationSteps.length > 0
+      ) {
         setIsPlaying(false);
       }
       return;
@@ -123,8 +130,10 @@ const PathVisualizer = () => {
     const newGrid = [...grid];
     const currentCell = newGrid[row][col];
 
-    if ((currentCell === "start" && selectedTool !== "start") ||
-        (currentCell === "goal" && selectedTool !== "goal")) {
+    if (
+      (currentCell === "start" && selectedTool !== "start") ||
+      (currentCell === "goal" && selectedTool !== "goal")
+    ) {
       return;
     }
 
@@ -172,7 +181,9 @@ const PathVisualizer = () => {
     const newGrid = [...grid];
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        if (["path", "visited", "current", "frontier"].includes(newGrid[row][col])) {
+        if (
+          ["path", "visited", "current", "frontier"].includes(newGrid[row][col])
+        ) {
           newGrid[row][col] = "empty";
         }
       }
@@ -199,9 +210,9 @@ const PathVisualizer = () => {
     setIsVisualizing(true);
 
     try {
-      const response = await fetch('/api/path', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/path", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           algorithm: selectedAlgorithm,
           grid,
@@ -209,7 +220,7 @@ const PathVisualizer = () => {
           goalPosition,
           rows,
           cols,
-        })
+        }),
       });
 
       if (!response.ok) throw new Error("Failed to fetch path data");
@@ -238,20 +249,20 @@ const PathVisualizer = () => {
 
   // Save current visualization
   const handleSave = async (name: string) => {
-    await fetch('/api/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    await fetch("/api/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        type: 'pathfinding',
+        type: "pathfinding",
         name,
         data: {
           grid,
           startPosition,
           goalPosition,
           selectedAlgorithm,
-          animationSpeed
-        }
-      })
+          animationSpeed,
+        },
+      }),
     });
   };
 
@@ -259,7 +270,13 @@ const PathVisualizer = () => {
   const handleLoad = async (itemId: string) => {
     const res = await fetch(`/api/load?id=${itemId}`);
     const { visualization } = await res.json();
-    const { grid, startPosition, goalPosition, selectedAlgorithm, animationSpeed } = visualization.data;
+    const {
+      grid,
+      startPosition,
+      goalPosition,
+      selectedAlgorithm,
+      animationSpeed,
+    } = visualization.data;
     setGrid(grid);
     setStartPosition(startPosition);
     setGoalPosition(goalPosition);
@@ -276,7 +293,10 @@ const PathVisualizer = () => {
   };
 
   const stepForward = (steps: number = 1) => {
-    const newIndex = Math.min(currentStepIndex + steps, animationSteps.length - 1);
+    const newIndex = Math.min(
+      currentStepIndex + steps,
+      animationSteps.length - 1
+    );
     setCurrentStepIndex(newIndex);
     setGrid([...animationSteps[newIndex]]);
   };
@@ -306,14 +326,22 @@ const PathVisualizer = () => {
 
   const getCellColor = (cell: CellType) => {
     switch (cell) {
-      case "wall": return "bg-gray-700";
-      case "start": return "bg-green-500";
-      case "goal": return "bg-red-500";
-      case "path": return "bg-yellow-500";
-      case "visited": return "bg-blue-700";
-      case "current": return "bg-purple-600";
-      case "frontier": return "bg-red-400";
-      default: return "bg-gray-900";
+      case "wall":
+        return "bg-gray-700";
+      case "start":
+        return "bg-green-500";
+      case "goal":
+        return "bg-red-500";
+      case "path":
+        return "bg-yellow-500";
+      case "visited":
+        return "bg-blue-700";
+      case "current":
+        return "bg-purple-600";
+      case "frontier":
+        return "bg-red-400";
+      default:
+        return "bg-gray-900";
     }
   };
 
@@ -326,10 +354,22 @@ const PathVisualizer = () => {
       {/* Top Save/Load Buttons */}
       {session?.user && (
         <div className="flex justify-center gap-4 mb-3">
-          <button onClick={() => { setModalMode('save'); setModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+          <button
+            onClick={() => {
+              setModalMode("save");
+              setModalOpen(true);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+          >
             Save
           </button>
-          <button onClick={() => { setModalMode('load'); setModalOpen(true); }} className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">
+          <button
+            onClick={() => {
+              setModalMode("load");
+              setModalOpen(true);
+            }}
+            className="bg-gray-800 text-gray-300 hover:bg-gray-700 px-4 py-2 rounded"
+          >
             Load
           </button>
         </div>
@@ -345,7 +385,7 @@ const PathVisualizer = () => {
         onLoad={handleLoad}
       />
 
-      {/* Controls Panel - Moved to top */}
+      {/* Controls Panel */}
       <div className="flex flex-col space-y-2 px-4 mb-3">
         <div className="flex flex-wrap justify-between gap-2 mb-1">
           <div className="flex flex-wrap gap-1">
@@ -428,7 +468,7 @@ const PathVisualizer = () => {
             </button>
 
             <button
-              className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600"
+              className="px-3 py-1 bg-gray-800 text-gray-300 hover:bg-gray-700 rounded hover:bg-gray-600"
               onClick={initializeGrid}
             >
               Clear All
@@ -436,7 +476,7 @@ const PathVisualizer = () => {
           </div>
         </div>
 
-        {/* Legend - Moved to top */}
+        {/* Legend */}
         <div className="flex flex-wrap justify-center gap-3 mt-1 text-xs">
           <div className="flex items-center">
             <div className="w-3 h-3 bg-green-500 mr-1"></div>
@@ -469,7 +509,7 @@ const PathVisualizer = () => {
         </div>
       </div>
 
-      {/* Animation Controls - Keep with the grid */}
+      {/* Animation Controls */}
       {algorithmStepsGenerated && animationSteps.length > 0 && (
         <div className="flex flex-wrap justify-center items-center gap-1 p-2 mx-4 mb-2 bg-gray-800 rounded">
           <button
@@ -542,7 +582,7 @@ const PathVisualizer = () => {
         </div>
       )}
 
-      {/* Grid Visualization - Now below the controls */}
+      {/* Grid Visualization */}
       <div className="grid grid-cols-1 flex-grow overflow-hidden border border-gray-700 mx-4 mb-4">
         {grid.map((row, rowIndex) => (
           <div key={rowIndex} className="flex flex-grow">
@@ -561,5 +601,5 @@ const PathVisualizer = () => {
       </div>
     </div>
   );
-}
+};
 export default PathVisualizer;

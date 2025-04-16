@@ -1,20 +1,30 @@
-// app/auth/signin/page.tsx
 "use client";
 
 import { signIn } from "next-auth/react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function SignInPage() {
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-    await signIn("credentials", {
+
+    const res = await signIn("credentials", {
       email,
       password,
-      callbackUrl: "/", // Redirect after login
+      redirect: false,
     });
+
+    if (res?.error) {
+      setError("Invalid email or password");
+    } else if (res?.ok) {
+      router.push("/");
+    }
   };
 
   return (
@@ -27,6 +37,7 @@ export default function SignInPage() {
           className="border w-full p-2 text-black"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          required
         />
         <input
           type="password"
@@ -34,10 +45,15 @@ export default function SignInPage() {
           className="border w-full p-2 text-black"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          required
         />
-        <button type="submit" className="bg-black text-white px-4 py-2 rounded">
+        <button
+          type="submit"
+          className="w-full py-2 rounded-md transition bg-gray-800 text-gray-300 hover:bg-gray-700"
+        >
           Login
         </button>
+        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
       </form>
     </div>
   );

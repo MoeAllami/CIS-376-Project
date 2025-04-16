@@ -1,19 +1,10 @@
-// This component wraps all pages with optional NavBar
-// It uses usePathname() to determine the current route
-// NavBar is only shown when not on the homepage ("/")
+"use client";
+import NavBar from "./NavBar";
 
-'use client';
-import NavBar from './NavBar';
-
-export default function LayoutWrapper({
-  children,
-}: {
+interface Props {
   children: React.ReactNode;
-}) {
-  return (
-    <>
-      {<NavBar />}
-      <main>{children}</main>
-    </>
-  );
+}
+
+export default function LayoutWrapper({ children }: Props) {
+  return <main className="max-w-7xl mx-auto px-6 w-full">{children}</main>;
 }
