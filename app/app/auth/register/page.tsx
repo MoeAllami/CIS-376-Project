@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react"; // Used to log the user in after registration
+import { signIn } from "next-auth/react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -36,7 +36,7 @@ export default function RegisterPage() {
       const loginRes = await signIn("credentials", {
         email,
         password,
-        redirect: false, // We’ll manually handle the redirect below
+        redirect: false,
       });
 
       if (loginRes?.ok) {
@@ -80,7 +80,7 @@ export default function RegisterPage() {
         />
         <button
           type="submit"
-          className="bg-blue-600 text-white w-full py-2 rounded"
+          className="w-full py-2 rounded-md transition bg-gray-800 text-gray-300 hover:bg-gray-700"
         >
           Register
         </button>

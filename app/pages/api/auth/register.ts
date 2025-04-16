@@ -1,10 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { dbConnect } from "@/lib/mongodb"; // Connect to MongoDB
-import User from "@/models/User"; // Mongoose User model
-import bcrypt from "bcryptjs"; // Password hashing
+import { dbConnect } from "@/lib/mongodb";
+import User from "@/models/User";
+import bcrypt from "bcryptjs";
 
-// API handler for registration
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   // Only allow POST requests
   if (req.method !== "POST")
     return res.status(405).json({ message: "Only POST requests allowed" });
@@ -24,6 +26,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Create a new user in the database
   const newUser = await User.create({ name, email, password: hashedPassword });
 
-  // Return the created user (no password included in response)
+  // Return the created user
   return res.status(201).json({ user: newUser });
 }
