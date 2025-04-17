@@ -31,9 +31,6 @@ export default function Home() {
             </button>
           </Link>
         </div>
-
-        {/* Footer */}
-        <p className="text-sm text-gray-500">Created by MIS Dynamics</p>
       </div>
     </div>
   );
