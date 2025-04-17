@@ -1,9 +1,9 @@
 // Interface describing the structure of a sorting result used for visualization
 export interface SortResult {
-  steps: number[][];           // Snapshots of the array at each step
-  highlights: number[][];      // Index pairs currently being compared or swapped
-  descriptions: string[];      // Step-by-step explanation for each action
-  sortedIndices: number[][];   // Tracks which indices are sorted at each step
+  steps: number[][]; // Snapshots of the array at each step
+  highlights: number[][]; // Index pairs currently being compared or swapped
+  descriptions: string[]; // Step-by-step explanation for each action
+  sortedIndices: number[][]; // Tracks which indices are sorted at each step
 }
 
 // Bubble Sort Visualization Logic
@@ -170,9 +170,33 @@ const quickSortRecursive = (
   sortedIndices: number[][]
 ) => {
   if (low < high) {
-    const pi = partition(arr, low, high, steps, highlights, descriptions, sortedIndices);
-    quickSortRecursive(arr, low, pi - 1, steps, highlights, descriptions, sortedIndices);
-    quickSortRecursive(arr, pi + 1, high, steps, highlights, descriptions, sortedIndices);
+    const pi = partition(
+      arr,
+      low,
+      high,
+      steps,
+      highlights,
+      descriptions,
+      sortedIndices
+    );
+    quickSortRecursive(
+      arr,
+      low,
+      pi - 1,
+      steps,
+      highlights,
+      descriptions,
+      sortedIndices
+    );
+    quickSortRecursive(
+      arr,
+      pi + 1,
+      high,
+      steps,
+      highlights,
+      descriptions,
+      sortedIndices
+    );
   }
 };
 
@@ -184,7 +208,15 @@ export const computeQuickSortSteps = (inputArray: number[]): SortResult => {
   const descriptions: string[] = ["Initial array"];
   const sortedIndices: number[][] = [[]];
 
-  quickSortRecursive(arr, 0, arr.length - 1, steps, highlights, descriptions, sortedIndices);
+  quickSortRecursive(
+    arr,
+    0,
+    arr.length - 1,
+    steps,
+    highlights,
+    descriptions,
+    sortedIndices
+  );
 
   steps.push([...arr]);
   highlights.push([]);
